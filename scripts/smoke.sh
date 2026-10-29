@@ -29,6 +29,7 @@ done
 fail=0
 BASE="http://localhost:$PORT" node scripts/test-pages.mjs || fail=1
 BASE="http://localhost:$PORT" node scripts/test-health-check.mjs || fail=1
+BASE="http://localhost:$PORT" node scripts/test-auth-security.mjs || fail=1
 
 if [ "$fail" -ne 0 ]; then
   echo "✗ smoke tests FAILED — server log:"
