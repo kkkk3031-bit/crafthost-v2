@@ -168,38 +168,38 @@
     <div class="service-row" id="svc-api">
       <div class="left">
         <div>
-          <div class="name">API Backend</div>
+          <div class="name" data-i18n="status_api">API Backend</div>
           <div class="desc">Node + Express + SQLite</div>
         </div>
       </div>
-      <span class="svc-status" id="svcApi"><span class="dot"></span><span>Checking…</span></span>
+      <span class="svc-status" id="svcApi"><span class="dot"></span><span data-i18n="status_checking">Checking…</span></span>
     </div>
     <div class="service-row" id="svc-jvm">
       <div class="left">
         <div>
-          <div class="name">JVM Controller</div>
-          <div class="desc">Minecraft server spawner</div>
+          <div class="name" data-i18n="status_jvm">JVM Controller</div>
+          <div class="desc" data-i18n="status_jvm_desc">Minecraft server spawner</div>
         </div>
       </div>
-      <span class="svc-status" id="svcJvm"><span class="dot"></span><span>Checking…</span></span>
+      <span class="svc-status" id="svcJvm"><span class="dot"></span><span data-i18n="status_checking">Checking…</span></span>
     </div>
     <div class="service-row" id="svc-tunnel">
       <div class="left">
         <div>
-          <div class="name">Public Tunnel</div>
+          <div class="name" data-i18n="status_tunnel">Public Tunnel</div>
           <div class="desc">bore.pub TCP proxy</div>
         </div>
       </div>
-      <span class="svc-status" id="svcTunnel"><span class="dot"></span><span>Checking…</span></span>
+      <span class="svc-status" id="svcTunnel"><span class="dot"></span><span data-i18n="status_checking">Checking…</span></span>
     </div>
   </div>
 
   <div class="events">
-    <h3>Last 24 hours · activity</h3>
-    <div id="events"><div class="event-row"><span class="a">Loading…</span></div></div>
+    <h3 data-i18n="status_activity">Last 24 hours · activity</h3>
+    <div id="events"><div class="event-row"><span class="a" data-i18n="status_loading">Loading…</span></div></div>
   </div>
 
-  <p class="refresh-line">Last checked: <span id="lastCheck">—</span></p>
+  <p class="refresh-line"><span data-i18n="status_last_checked">Last checked:</span> <span id="lastCheck">—</span></p>
 </div>
 
 <script src="/js/app.js"></script>
@@ -215,10 +215,12 @@ function fmtUptime(ms) {
   const d = Math.floor(h / 24);
   return d + 'd ' + (h % 24) + 'h';
 }
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 function setSvc(id, ok, label) {
   const el = document.getElementById(id);
   el.className = 'svc-status ' + (ok ? 'svc-up' : 'svc-down');
-  el.innerHTML = `<span class="dot"></span><span>${label}</span>`;
+  el.innerHTML = `<span class="dot"></span><span></span>`;
+  el.lastElementChild.textContent = label;
 }
 async function refresh() {
   try {
@@ -228,7 +230,7 @@ async function refresh() {
     const pill = document.getElementById('statusPill');
     const allOk = h.ok && s.ok && h.jvm;
     pill.className = 'status-pill' + (allOk ? '' : ' degraded');
-    document.getElementById('statusLabel').textContent = allOk ? 'All systems operational' : 'Degraded performance';
+    document.getElementById('statusLabel').textContent = t(allOk ? 'status_all_ok' : 'status_degraded');
     // Stat tiles
     document.getElementById('vUptime').textContent = fmtUptime(s.uptime_ms);
     document.getElementById('vUsers').textContent = (s.counts.users || 0).toLocaleString();
@@ -236,22 +238,22 @@ async function refresh() {
     document.getElementById('vRunning').textContent = (s.counts.running || 0).toLocaleString();
     document.getElementById('vPlayers').textContent = (s.counts.players_online || 0).toLocaleString();
     // Services
-    setSvc('svcApi', h.ok, 'Operational');
-    setSvc('svcJvm', h.jvm, h.jvm ? 'Operational' : 'Unavailable');
-    setSvc('svcTunnel', !!h.public_mc_host, h.public_mc_host ? 'Operational' : 'Configured locally');
+    setSvc('svcApi', h.ok, t('status_operational'));
+    setSvc('svcJvm', h.jvm, t(h.jvm ? 'status_operational' : 'status_unavailable'));
+    setSvc('svcTunnel', !!h.public_mc_host, t(h.public_mc_host ? 'status_operational' : 'status_local'));
     // Events
     const ev = document.getElementById('events');
     if (s.events_24h && s.events_24h.length) {
-      ev.innerHTML = s.events_24h.map(e => `<div class="event-row"><span class="a">${e.action}</span><span class="n">${e.n}</span></div>`).join('');
+      ev.innerHTML = s.events_24h.map(e => `<div class="event-row"><span class="a">${esc(e.action)}</span><span class="n">${Number(e.n) || 0}</span></div>`).join('');
     } else {
-      ev.innerHTML = '<div class="event-row"><span class="a">No activity in the last 24h</span></div>';
+      ev.innerHTML = `<div class="event-row"><span class="a">${esc(t('status_no_activity'))}</span></div>`;
     }
     document.getElementById('lastCheck').textContent = new Date().toLocaleTimeString();
   } catch (err) {
     const pill = document.getElementById('statusPill');
     pill.className = 'status-pill down';
-    document.getElementById('statusLabel').textContent = 'Cannot reach API';
-    document.getElementById('lastCheck').textContent = 'Error: ' + err.message;
+    document.getElementById('statusLabel').textContent = t('status_unreachable');
+    document.getElementById('lastCheck').textContent = t('status_error') + ' ' + err.message;
   }
 }
 refresh();
