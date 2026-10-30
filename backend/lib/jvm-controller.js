@@ -33,8 +33,16 @@ const CHILD_ENV_KEYS = ["PATH", "HOME", "LANG", "LC_ALL", "TZ", "TMPDIR", "JAVA_
 function childEnv() {
   const env = { JAVA_TOOL_OPTIONS: "" };
   for (const k of CHILD_ENV_KEYS) if (process.env[k] !== undefined) env[k] = process.env[k];
+  if (MC_JAVA_HOME) env.JAVA_HOME = MC_JAVA_HOME; // match the java we actually launch
   return env;
 }
+
+// The java binary for Minecraft: MC_JAVA_HOME (app-specific, so a host whose
+// shell JAVA_HOME points at an older JDK for other tools can still run MC), then
+// JAVA_HOME (the Docker image sets it to JDK 25), else "java" on PATH. Modern MC
+// needs Java 21+ (1.20.5+) or 25 (1.21.6+); an older java crashed every server.
+const MC_JAVA_HOME = process.env.MC_JAVA_HOME || process.env.JAVA_HOME || "";
+const JAVA_BIN = MC_JAVA_HOME ? path.join(MC_JAVA_HOME, "bin", "java") : "java";
 
 const MAX_HEAP_MB = parseInt(process.env.MAX_HEAP_MB || "1024", 10);
 // CPU cap fed to the JVM via -XX:ActiveProcessorCount. Railway's underlying host
@@ -84,7 +92,7 @@ const startTokens = new Map();
 function isAvailable() {
   if (process.env.DISABLE_JVM === "1") return false;
   try {
-    execFileSync("java", ["-version"], { stdio: "ignore", timeout: 3000 });
+    execFileSync(JAVA_BIN, ["-version"], { stdio: "ignore", timeout: 3000 });
     return true;
   } catch {
     return false;
@@ -541,7 +549,7 @@ async function startBedrockSidecar(id, server, javaPort) {
   const bedrockPort = bedrockListenPort(server);
   writeStandaloneGeyserConfig(geyserDir, javaPort, bedrockPort);
   const gproc = spawn(
-    "java",
+    JAVA_BIN,
     [
       "-Xms64M",
       "-Xmx256M",
@@ -683,7 +691,7 @@ async function ensureJar(server) {
   if (info.installer && t === "neoforge") {
     const { execFileSync } = require("child_process");
     try {
-      execFileSync("java", ["-jar", jarPath, "--installServer"], {
+      execFileSync(JAVA_BIN, ["-jar", jarPath, "--installServer"], {
         cwd: dir,
         stdio: "inherit",
         timeout: 180_000,
@@ -1150,7 +1158,15 @@ async function startServer(containerId, server) {
     return { status: "cancelled" };
   }
 
-  const proc = spawn("java", args, {
+  // A JVM orphaned by a backend restart (it outlives Node) still holds this
+  // world and port; booting a second one on top would fail to bind or corrupt
+  // the world. Only kill when we aren't tracking a live process for this id.
+  const tracked = running.get(id)?.proc;
+  if (!tracked || tracked.exitCode !== null || tracked.signalCode !== null) {
+    killOrphansByDir(dir);
+  }
+
+  const proc = spawn(JAVA_BIN, args, {
     cwd: dir,
     stdio: ["pipe", "pipe", "pipe"],
     env: childEnv(),
@@ -1469,7 +1485,9 @@ async function startServer(containerId, server) {
   return { status: "starting", pid: proc.pid, hostPort };
 }
 
-async function stopServer(containerId, server) {
+// graceful=false skips the "stop"/save-all wait. Only for removeServer: the world
+// is deleted next, and a JVM still booting ignores "stop", which cost a full 28s.
+async function stopServer(containerId, server, { graceful = true } = {}) {
   const id = String(containerId || "").replace(/^jvm-/, "") || server?.id;
   // Cancel any in-flight start attempt (jar still downloading) so it can't
   // spawn a JVM after this stop completes.
@@ -1488,31 +1506,49 @@ async function stopServer(containerId, server) {
   // Reap the Bedrock sidecar (if any) alongside the MC process.
   stopBedrockSidecar(id);
   try {
-    // graceful: send "stop" via stdin first
-    state.proc.stdin.write("stop\n");
-    await new Promise((resolve) => {
-      const t = setTimeout(() => {
-        try {
-          state.proc.kill("SIGTERM");
-        } catch {}
-        // SIGTERM can be ignored mid-boot; escalate so a deleted server can
-        // never leave a port-squatting JVM behind.
-        const t2 = setTimeout(() => {
-          try {
-            state.proc.kill("SIGKILL");
-          } catch {}
-          resolve();
-        }, 8000);
+    if (state.proc.exitCode !== null || state.proc.signalCode !== null) {
+      // Already exited: no "exit" event will ever fire, so don't wait for one.
+    } else if (!graceful) {
+      await new Promise((resolve) => {
+        const t = setTimeout(resolve, 5000); // SIGKILL can't be ignored; cap the wait anyway
         state.proc.once("exit", () => {
-          clearTimeout(t2);
+          clearTimeout(t);
           resolve();
         });
-      }, 20000);
-      state.proc.once("exit", () => {
-        clearTimeout(t);
-        resolve();
+        try {
+          state.proc.kill("SIGKILL");
+        } catch {
+          clearTimeout(t);
+          resolve();
+        }
       });
-    });
+    } else {
+      // graceful: send "stop" via stdin first
+      state.proc.stdin.write("stop\n");
+      await new Promise((resolve) => {
+        const t = setTimeout(() => {
+          try {
+            state.proc.kill("SIGTERM");
+          } catch {}
+          // SIGTERM can be ignored mid-boot; escalate so a deleted server can
+          // never leave a port-squatting JVM behind.
+          const t2 = setTimeout(() => {
+            try {
+              state.proc.kill("SIGKILL");
+            } catch {}
+            resolve();
+          }, 8000);
+          state.proc.once("exit", () => {
+            clearTimeout(t2);
+            resolve();
+          });
+        }, 20000);
+        state.proc.once("exit", () => {
+          clearTimeout(t);
+          resolve();
+        });
+      });
+    }
   } catch {}
   running.delete(id);
   return { status: "offline" };
@@ -1524,7 +1560,7 @@ async function restartServer(containerId, server) {
 }
 
 async function removeServer(containerId, server) {
-  await stopServer(containerId, server);
+  await stopServer(containerId, server, { graceful: false });
   const id = String(containerId || "").replace(/^jvm-/, "") || server?.id;
   const dir = path.join(DATA_DIR, id);
   try {
@@ -2075,7 +2111,7 @@ async function realTestJar(jarPath, type, version) {
 
     return await new Promise((resolve) => {
       const proc = spawn(
-        "java",
+        JAVA_BIN,
         ["-Xms256M", "-Xmx512M", "-jar", "server.jar", "nogui"],
         {
           cwd: testDir,

@@ -186,26 +186,21 @@ router.get("/", (req, res) => {
 });
 
 // Per-user server cap. Every account may create up to MAX_SERVERS_PER_USER
-// servers total. Owner/admin accounts are exempt (unlimited): any user whose
-// role is 'admin', or whose username / email (or email local-part) is listed in
-// UNLIMITED_USERS (case-insensitive). Defaults: 3 per user, khaledq84ever unlimited.
+// servers total. Exempt (unlimited): role 'admin', or a username listed in
+// UNLIMITED_USERS (case-insensitive). Emails are never verified, so they can't
+// grant anything, and there is no default name: an unregistered one could be
+// claimed by whoever signs up first. Default cap: 3 per user.
 const MAX_SERVERS_PER_USER = parseInt(
   process.env.MAX_SERVERS_PER_USER || "3",
   10,
 );
-const UNLIMITED_USERS = (process.env.UNLIMITED_USERS || "khaledq84ever")
+const UNLIMITED_USERS = (process.env.UNLIMITED_USERS || "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
   .filter(Boolean);
 function isUnlimitedUser(user) {
   if (user?.role === "admin") return true;
-  const uname = (user?.username || "").toLowerCase();
-  const email = (user?.email || "").toLowerCase();
-  return (
-    UNLIMITED_USERS.includes(uname) ||
-    UNLIMITED_USERS.includes(email) ||
-    UNLIMITED_USERS.includes(email.split("@")[0])
-  );
+  return UNLIMITED_USERS.includes((user?.username || "").toLowerCase());
 }
 
 // Shared playit secret store — makes Bedrock one-click for EVERY server after the

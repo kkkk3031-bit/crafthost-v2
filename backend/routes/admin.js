@@ -12,13 +12,14 @@ const dc = require("../lib/controller");
 const router = express.Router();
 
 // Owner-only by explicit request: the ops API answers to a single username
-// (khaledq84ever), regardless of the role column. ADMIN_USERNAME env
-// overrides for local testing.
+// (khaledq84ever; ADMIN_USERNAME env overrides for local testing). The account
+// must ALSO hold the admin role: usernames are first-come, so on an instance
+// where the owner never registered, anyone could sign up with that name.
 const ADMIN_USERNAME = (
   process.env.ADMIN_USERNAME || "khaledq84ever"
 ).toLowerCase();
 function ownerOnly(req, res, next) {
-  if ((req.user?.username || "").toLowerCase() !== ADMIN_USERNAME)
+  if (req.user?.role !== "admin" || (req.user?.username || "").toLowerCase() !== ADMIN_USERNAME)
     return res.status(403).json({ error: "Admin only" });
   next();
 }

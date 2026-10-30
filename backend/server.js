@@ -1,5 +1,11 @@
 require("dotenv").config();
 
+// Every module reads DATA_DIR straight from env, and the JVM runs with
+// cwd = the server's own folder. A relative DATA_DIR (e.g. "./data/servers" from
+// .env) made java look for data/servers/<id>/data/servers/<id>/server.jar, so
+// every server crashed instantly. Resolve it once, before anything reads it.
+if (process.env.DATA_DIR) process.env.DATA_DIR = require("path").resolve(process.env.DATA_DIR);
+
 // ─── EMERGENCY PRE-BOOT LOG PURGE ───────────────────────────────────────────
 // Runs SYNCHRONOUSLY before any DB import, before any other code. If the
 // volume is ENOSPC-full, the SQLite open will fail because it can't write WAL

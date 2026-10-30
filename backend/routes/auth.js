@@ -192,13 +192,16 @@ router.delete('/me', authMiddleware, async (req, res) => {
     return res.status(403).json({ error: 'Admin accounts cannot be self-deleted. Demote first.' });
   }
 
-  // Stop & remove servers + free TCP proxies before deleting the row.
+  // Remove servers (kill + delete files: no graceful save, the data is going
+  // away, and a still-booting JVM ignores "stop" for 28s) + free TCP proxies.
   try {
     const dc = require('../lib/controller');
     const railway = require('../lib/railway-api');
+    const bk = require('../lib/backup');
     const servers = db.prepare('SELECT s.*, p.ram_mb, p.cpu_cores FROM servers s JOIN plans p ON s.plan_id = p.id WHERE s.user_id = ?').all(req.user.id);
     for (const s of servers) {
-      try { await dc.stopServer(s); } catch {}
+      try { await dc.removeServer(s); } catch {}
+      await bk.deleteAllBackups(s.id).catch(() => {});
       if (s.proxy_id && railway.isConfigured()) {
         try { await railway.deleteTcpProxy(s.proxy_id); } catch {}
       }

@@ -119,6 +119,24 @@ console.log(`${Y('▶')} Concurrent sign-ups with the same email`);
   if (winner) await api('/api/auth/me', { method: 'DELETE', token: winner.body.token, body: { password, confirm: 'DELETE' } });
 }
 
+console.log(`${Y('▶')} Owner username alone grants nothing`);
+{
+  // On a fresh DB nobody owns the owner's name: whoever registers it must not become admin.
+  const owner = (process.env.ADMIN_USERNAME || 'khaledq84ever');
+  const r = await api('/api/auth/register', {
+    method: 'POST',
+    body: { username: owner, email: `own+${suffix}@test.io`, password },
+  });
+  if (r.status === 409) {
+    console.log(`  ${Y('-')} skipped: "${owner}" already registered on this instance`);
+  } else {
+    check(r.status === 200, `register "${owner}" → ${r.status}`);
+    const ops = await api('/api/admin/ops', { token: r.body?.token });
+    check(ops.status === 403, `GET /api/admin/ops as non-admin "${owner}" → 403 (got ${ops.status})`);
+    if (r.body?.token) await api('/api/auth/me', { method: 'DELETE', token: r.body.token, body: { password, confirm: 'DELETE' } });
+  }
+}
+
 console.log(`${Y('▶')} Cleanup`);
 {
   const r = await api('/api/auth/me', { method: 'DELETE', token: newToken, body: { password: newPassword, confirm: 'DELETE' } });
