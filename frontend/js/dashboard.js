@@ -433,22 +433,22 @@ function openDeleteConfirm(sid, name) {
       </div>
       <div class="modal-body">
         <p style="color:var(--slate-300);margin-bottom:12px;">
-          You are about to <strong>permanently</strong> delete:
+          ${t("del_about")}
         </p>
         <div style="padding:12px 16px;background:var(--slate-800);border-radius:8px;font-weight:700;margin-bottom:14px;">
           ${escapeHtml(name)}
         </div>
         <p class="text-muted" style="font-size:13px;margin-bottom:14px;">
-          This stops the JVM, removes the world data, releases the public tunnel, and erases all backups. There is no undo.
+          ${t("del_warn")}
         </p>
         <div class="field">
-          <label class="label">Type the server name to confirm</label>
+          <label class="label" data-i18n="del_type_name">Type the server name to confirm</label>
           <input id="delConfirmInput" class="input" placeholder="${escapeHtml(name)}" autocomplete="off" />
         </div>
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" onclick="document.getElementById('delServerModal').classList.remove('show')">${t("cancel")}</button>
-        <button class="btn btn-danger" id="delServerGo" disabled>Delete forever</button>
+        <button class="btn btn-danger" id="delServerGo" disabled>${t("del_forever")}</button>
       </div>
     </div>
   `;
@@ -469,7 +469,7 @@ function openDeleteConfirm(sid, name) {
     } catch (err) {
       toast(err.message, "error");
       btn.disabled = false;
-      btn.textContent = "Delete forever";
+      btn.textContent = t("del_forever");
     }
   };
 }
@@ -489,7 +489,7 @@ async function openLogs(sid, name) {
       <div class="modal-head">
         <h3>📜 ${t("menu_view_logs")} · ${escapeHtml(name)}</h3>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn btn-ghost btn-sm" id="logsRefresh">↻ Refresh</button>
+          <button class="btn btn-ghost btn-sm" id="logsRefresh" data-i18n="refresh_btn">↻ Refresh</button>
           <button class="close-btn" id="logsClose">✕</button>
         </div>
       </div>
@@ -497,7 +497,7 @@ async function openLogs(sid, name) {
         <pre id="logsContent" style="margin:0;padding:16px 20px;font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--slate-300);background:#000;height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word;">Loading…</pre>
       </div>
       <div class="modal-foot" style="border-top:1px solid var(--glass-border);">
-        <span class="text-muted" style="font-size:12px;margin-right:auto;">Last 200 lines · auto-refreshes</span>
+        <span class="text-muted" style="font-size:12px;margin-right:auto;" data-i18n="logs_last_lines">Last 200 lines · auto-refreshes</span>
         <label class="flex items-center gap-2" style="font-size:13px;"><input type="checkbox" id="logsAuto" checked /> Auto-refresh</label>
       </div>
     </div>
@@ -650,18 +650,18 @@ async function openSwapJar(sid, curType, curVer, planId) {
       </div>
       <div class="modal-body">
         <div class="field">
-          <label class="label">Server Type</label>
+          <label class="label" data-i18n="swap_type">Server Type</label>
           <select class="select" id="sjType">
             ${["paper", "vanilla", "purpur", "fabric", "neoforge"].map((t) => `<option value="${t}" ${t === curType ? "selected" : ""}>${t[0].toUpperCase() + t.slice(1)}</option>`).join("")}
           </select>
         </div>
         <div class="field">
-          <label class="label">Version (latest 10)</label>
+          <label class="label" data-i18n="swap_version">Version (latest 10)</label>
           <select class="select" id="sjVersion"><option>Loading…</option></select>
         </div>
         <div id="sjWarn"></div>
         <div id="sjError"></div>
-        <p class="text-muted" style="font-size:13px;">⚠ Server will stop, download new JAR (~30s), and restart automatically. Your world data is preserved.</p>
+        <p class="text-muted" style="font-size:13px;" data-i18n="swap_note">⚠ Server will stop, download new JAR (~30s), and restart automatically. Your world data is preserved.</p>
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" onclick="document.getElementById('swapJarModal').classList.remove('show')">${t("cancel")}</button>
@@ -845,14 +845,14 @@ async function openBackups(sid, name) {
         <div id="bkError"></div>
         <div id="bkList" class="text-muted">Loading…</div>
         <p class="text-muted" style="font-size:12px;margin-top:10px;">
-          Snapshots include your worlds, server.properties, and player lists.
+          ${t("bk_includes")}
           A running server is stopped for a few seconds while the snapshot is taken, then restarted.
           Automatic backups are taken before risky changes (downgrades, engine swaps, world imports, restores).
         </p>
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" onclick="document.getElementById('backupsModal').classList.remove('show')">Close</button>
-        <button class="btn btn-primary" id="bkCreate">📸 Back up now</button>
+        <button class="btn btn-primary" id="bkCreate">${t("bk_now")}</button>
       </div>
     </div>
   `;
@@ -864,7 +864,7 @@ async function openBackups(sid, name) {
   const setBusy = (busy, text) => {
     const btn = document.getElementById("bkCreate");
     btn.disabled = busy;
-    btn.textContent = busy ? text || "⏳ Working…" : "📸 Back up now";
+    btn.textContent = busy ? text || t("bk_working") : t("bk_now");
     document
       .querySelectorAll("#bkList button")
       .forEach((b) => (b.disabled = busy));
@@ -884,7 +884,7 @@ async function openBackups(sid, name) {
       const r = await api(`/api/servers/${sid}/backups`);
       const items = r.backups || [];
       if (!items.length) {
-        host.innerHTML = `<div class="text-muted">No backups yet. Take one before making big changes!</div>`;
+        host.innerHTML = `<div class="text-muted">${t("bk_none")}</div>`;
         return;
       }
       host.innerHTML = items
@@ -1839,8 +1839,8 @@ async function openHealthCheck() {
           <div class="hc-loading">Checking your servers…</div>
         </div>
         <div class="modal-foot" style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid var(--glass-border);font-size:12px;color:var(--slate-400);">
-          <span id="hcStatus">Polling every 10s · last refresh: —</span>
-          <button class="btn btn-ghost btn-sm" onclick="refreshHealthCheck()">↻ Refresh</button>
+          <span id="hcStatus">${t("hc_polling").replace("{t}", "—")}</span>
+          <button class="btn btn-ghost btn-sm" onclick="refreshHealthCheck()" data-i18n="refresh_btn">↻ Refresh</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -1871,17 +1871,17 @@ async function refreshHealthCheck() {
   try {
     const data = await api("/api/servers/health-check");
     sumEl.innerHTML = `
-      ${data.summary.good ? `<span class="hc-pill hc-good">✓ ${data.summary.good} healthy</span>` : ""}
-      ${data.summary.warn ? `<span class="hc-pill hc-warn">! ${data.summary.warn} warning${data.summary.warn > 1 ? "s" : ""}</span>` : ""}
-      ${data.summary.error ? `<span class="hc-pill hc-error">✗ ${data.summary.error} error${data.summary.error > 1 ? "s" : ""}</span>` : ""}
-      ${!data.summary.total ? `<span class="hc-pill">No servers yet</span>` : ""}
+      ${data.summary.good ? `<span class="hc-pill hc-good">${t("hc_n_healthy").replace("{n}", data.summary.good)}</span>` : ""}
+      ${data.summary.warn ? `<span class="hc-pill hc-warn">${t("hc_n_warn").replace("{n}", data.summary.warn)}</span>` : ""}
+      ${data.summary.error ? `<span class="hc-pill hc-error">${t("hc_n_error").replace("{n}", data.summary.error)}</span>` : ""}
+      ${!data.summary.total ? `<span class="hc-pill">${t("hc_no_servers")}</span>` : ""}
     `;
     if (!data.servers.length) {
       body.innerHTML = `<div class="hc-empty">You haven't created a server yet. Hit <strong>+ Create Server</strong> to spin one up.</div>`;
     } else {
       body.innerHTML = data.servers.map(renderHealthCard).join("");
     }
-    status.textContent = `Polling every 10s · last refresh: ${new Date(data.checked_at).toLocaleTimeString()}`;
+    status.textContent = t("hc_polling").replace("{t}", new Date(data.checked_at).toLocaleTimeString(document.documentElement.lang || undefined));
   } catch (err) {
     body.innerHTML = `<div class="hc-empty hc-error-text">Failed to load health check: ${escapeHtmlD(err.message || "unknown error")}</div>`;
     status.textContent = `Error · retrying in 10s`;
@@ -1897,10 +1897,10 @@ function renderHealthCard(s) {
   const pillIcon = s.health === "error" ? "✗" : s.health === "warn" ? "!" : "✓";
   const pillLabel =
     s.health === "error"
-      ? "Needs attention"
+      ? t("hc_needs_attention")
       : s.health === "warn"
-        ? "Has warnings"
-        : "Healthy";
+        ? t("hc_has_warnings")
+        : t("hc_healthy");
   const ramPct = s.stats?.ram_max
     ? Math.round((s.stats.ram_used / s.stats.ram_max) * 100)
     : 0;
@@ -1923,7 +1923,7 @@ function renderHealthCard(s) {
           <div><span class="hc-stat-label">${t("uptime")}</span><span>${fmtUptimeD(s.stats.uptime)}</span></div>
         </div>`
           : `
-        <div class="hc-stats hc-stats-offline">Server is offline · no live stats</div>`
+        <div class="hc-stats hc-stats-offline">${t("hc_offline")}</div>`
       }
       ${
         s.issues.length
@@ -1979,20 +1979,20 @@ async function openCloneDialog(sourceId, sourceName) {
         </div>
         <div class="modal-body" style="padding:18px 20px;">
           <p style="margin:0 0 14px;color:var(--slate-300);font-size:13.5px;line-height:1.5;">
-            Creates a new server with the same type, version, plan, world, and plugins.
+            ${t("clone_desc")}
             The fresh server.jar is downloaded on first start.
           </p>
-          <label class="label" for="cloneName">New server name</label>
+          <label class="label" for="cloneName" data-i18n="clone_name">New server name</label>
           <input class="input" id="cloneName" maxlength="40" />
           <div style="display:grid;gap:8px;margin-top:14px;">
-            <label class="clone-opt"><input type="checkbox" id="cloneWorld" checked /> <span>Copy world (saves & terrain)</span></label>
-            <label class="clone-opt"><input type="checkbox" id="clonePlugins" checked /> <span>Copy plugins folder</span></label>
+            <label class="clone-opt"><input type="checkbox" id="cloneWorld" checked /> <span data-i18n="clone_world">Copy world (saves & terrain)</span></label>
+            <label class="clone-opt"><input type="checkbox" id="clonePlugins" checked /> <span data-i18n="clone_plugins">Copy plugins folder</span></label>
           </div>
           <div id="cloneStatus" style="margin-top:14px;font-size:13px;color:var(--slate-400);display:none;"></div>
         </div>
         <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--glass-border);">
           <button class="btn btn-ghost" onclick="closeCloneDialog()">${t("cancel")}</button>
-          <button class="btn btn-primary" id="cloneSubmit">📑 Clone now</button>
+          <button class="btn btn-primary" id="cloneSubmit">${t("clone_now")}</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -2010,7 +2010,7 @@ async function openCloneDialog(sourceId, sourceName) {
   document.getElementById("clonePlugins").checked = true;
   document.getElementById("cloneStatus").style.display = "none";
   document.getElementById("cloneSubmit").disabled = false;
-  document.getElementById("cloneSubmit").innerHTML = "📑 Clone now";
+  document.getElementById("cloneSubmit").textContent = t("clone_now");
   document.getElementById("cloneSubmit").onclick = async () => {
     const btn = document.getElementById("cloneSubmit");
     const status = document.getElementById("cloneStatus");

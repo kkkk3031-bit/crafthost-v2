@@ -320,6 +320,40 @@ window.I18N = {
     console_mc_version: "MC version",
     console_host_port: "Host port",
     console_exit_code: "Exit code",
+    // Dashboard modals + wizard
+    refresh_btn: "↻ Refresh",
+    logs_last_lines: "Last 200 lines · auto-refreshes",
+    bk_none: "No backups yet. Take one before making big changes!",
+    bk_includes: "Snapshots include your worlds, server.properties, and player lists.",
+    bk_now: "📸 Back up now",
+    bk_working: "⏳ Working…",
+    swap_type: "Server Type",
+    swap_version: "Version (latest 10)",
+    swap_note: "⚠ Server will stop, download new JAR (~30s), and restart automatically. Your world data is preserved.",
+    del_about: "You are about to permanently delete:",
+    del_warn: "This stops the JVM, removes the world data, releases the public tunnel, and erases all backups. There is no undo.",
+    del_type_name: "Type the server name to confirm",
+    del_forever: "Delete forever",
+    hc_n_healthy: "✓ {n} healthy",
+    hc_n_warn: "! {n} warnings",
+    hc_n_error: "✗ {n} errors",
+    hc_no_servers: "No servers yet",
+    hc_needs_attention: "Needs attention",
+    hc_has_warnings: "Has warnings",
+    hc_healthy: "Healthy",
+    hc_offline: "Server is offline · no live stats",
+    hc_polling: "Polling every 10s · last refresh: {t}",
+    clone_desc: "Creates a new server with the same type, version, plan, world, and plugins.",
+    clone_name: "New server name",
+    clone_world: "Copy world (saves & terrain)",
+    clone_plugins: "Copy plugins folder",
+    clone_now: "📑 Clone now",
+    wiz_step_type: "Type",
+    wiz_step_version: "Version",
+    wiz_step_configure: "Configure",
+    wiz_step_review: "Review",
+    wiz_pick_engine: "Pick the engine that powers your world.",
+    engine_desc_custom: "Upload your own .jar file (up to 500MB).",
     jars_source_note: "JARs come from the official source of each engine and are cached on the server, so new servers start fast.",
   },
   ar: {
@@ -621,6 +655,40 @@ window.I18N = {
     console_mc_version: "إصدار ماين كرافت",
     console_host_port: "منفذ المضيف",
     console_exit_code: "رمز الخروج",
+    // Dashboard modals + wizard
+    refresh_btn: "↻ تحديث",
+    logs_last_lines: "آخر 200 سطر · تحديث تلقائي",
+    bk_none: "لا توجد نسخ احتياطية بعد. خذ نسخة قبل أي تغيير كبير!",
+    bk_includes: "تشمل النسخ عوالمك وملف server.properties وقوائم اللاعبين.",
+    bk_now: "📸 انسخ الآن",
+    bk_working: "⏳ جارٍ العمل…",
+    swap_type: "نوع السيرفر",
+    swap_version: "الإصدار (آخر 10)",
+    swap_note: "⚠ سيتوقف السيرفر ويُنزّل JAR الجديد (~30 ث) ثم يعيد التشغيل تلقائياً. بيانات عالمك محفوظة.",
+    del_about: "أنت على وشك الحذف النهائي لـ:",
+    del_warn: "سيؤدي هذا إلى إيقاف JVM وحذف بيانات العالم وتحرير النفق العام ومسح كل النسخ الاحتياطية. لا يمكن التراجع.",
+    del_type_name: "اكتب اسم السيرفر للتأكيد",
+    del_forever: "حذف نهائي",
+    hc_n_healthy: "✓ {n} سليم",
+    hc_n_warn: "! {n} تحذيرات",
+    hc_n_error: "✗ {n} أخطاء",
+    hc_no_servers: "لا توجد سيرفرات بعد",
+    hc_needs_attention: "يحتاج إلى انتباه",
+    hc_has_warnings: "توجد تحذيرات",
+    hc_healthy: "سليم",
+    hc_offline: "السيرفر متوقف · لا توجد إحصاءات مباشرة",
+    hc_polling: "فحص كل 10 ث · آخر تحديث: {t}",
+    clone_desc: "ينشئ سيرفراً جديداً بنفس النوع والإصدار والخطة والعالم والإضافات.",
+    clone_name: "اسم السيرفر الجديد",
+    clone_world: "نسخ العالم (الحفظ والتضاريس)",
+    clone_plugins: "نسخ مجلد الإضافات",
+    clone_now: "📑 انسخ الآن",
+    wiz_step_type: "النوع",
+    wiz_step_version: "الإصدار",
+    wiz_step_configure: "الإعداد",
+    wiz_step_review: "المراجعة",
+    wiz_pick_engine: "اختر المحرك الذي يشغّل عالمك.",
+    engine_desc_custom: "ارفع ملف ‎.jar الخاص بك (حتى 500MB).",
     jars_source_note: "تُجلب ملفات JAR من المصدر الرسمي لكل محرك وتُخزَّن مؤقتاً على الخادم، فتبدأ السيرفرات الجديدة بسرعة.",
   },
 };
@@ -632,6 +700,24 @@ window.t = (key) => {
 };
 // t() with a fallback for keys that may not exist (t() returns the key itself).
 window.tOr = (key, fallback) => (window.I18N.en[key] ? window.t(key) : fallback);
+// Modals, cards and menus are inserted after applyLang ran, so their
+// data-i18n nodes would stay English. Translate anything with data-i18n as it
+// is added. Only text nodes change, which this observer ignores (no loops).
+(function translateInsertedNodes() {
+  if (typeof MutationObserver === "undefined" || typeof document === "undefined") return;
+  const apply = (root) => {
+    const dict = window.I18N[localStorage.getItem("crafthost.lang") || "en"];
+    if (!dict || !root.querySelectorAll) return;
+    const els = root.matches("[data-i18n]") ? [root, ...root.querySelectorAll("[data-i18n]")] : root.querySelectorAll("[data-i18n]");
+    for (const el of els) {
+      const v = dict[el.getAttribute("data-i18n")];
+      if (v && el.textContent !== v) el.textContent = v;
+    }
+  };
+  new MutationObserver((muts) => {
+    for (const m of muts) for (const n of m.addedNodes) if (n.nodeType === 1) apply(n);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
 window.applyLang = (lang) => {
   lang = lang === "ar" ? "ar" : "en";
   localStorage.setItem("crafthost.lang", lang);

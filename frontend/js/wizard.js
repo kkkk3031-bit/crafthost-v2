@@ -196,7 +196,7 @@ function closeWizard() {
 }
 
 function renderWizard() {
-  const labels = ["Type", "Version", "Configure", "Review"];
+  const labels = ["wiz_step_type", "wiz_step_version", "wiz_step_configure", "wiz_step_review"].map((k) => window.t(k));
   const m = document.getElementById("wizardModal");
   m.innerHTML = `
   <div class="modal wiz-modal" onclick="event.stopPropagation()">
@@ -261,7 +261,7 @@ function renderStep1() {
   // All types unlocked on Pro plan (4 GB RAM per server). Auto-heal still
   // recovers any OOM cases that slip through.
   return `
-    <p class="text-muted mb-6">Pick the engine that powers your world.</p>
+    <p class="text-muted mb-6">${window.t("wiz_pick_engine")}</p>
     <div class="type-grid">
       ${SERVER_TYPES.map(
         (t) => `
