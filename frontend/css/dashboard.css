@@ -1084,6 +1084,9 @@ body { background: var(--slate-900); }
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+/* The plan tile holds a word, not a number: UI font and normal tracking.
+   Mono + negative letter-spacing split Arabic letters apart ("مجا ني"). */
+#statPlan { font-family: inherit; letter-spacing: normal; }
 .stat-tile .delta {
   margin-top: 6px;
   font-family: var(--font-mono);

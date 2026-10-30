@@ -198,8 +198,8 @@ function renderServer(s) {
     ? `<span class="badge" style="background:rgba(56,189,248,0.15);color:var(--blue);border:1px solid rgba(56,189,248,0.25);font-size:11px;">#${s.user_slot}</span>`
     : "";
   const publicBadge = s.is_public
-    ? `<span class="badge badge-emerald" title="Reachable from Minecraft clients">🌍 Public</span>`
-    : `<span class="badge" title="Internal only — promote to play">🔒 Internal</span>`;
+    ? `<span class="badge badge-emerald" title="Reachable from Minecraft clients">${t("dash_public")}</span>`
+    : `<span class="badge" title="Internal only — promote to play">${t("dash_internal")}</span>`;
   // OOM-aware crash hint. Three states:
   //  1. Auto-healed recently → green "✓ Auto-healed" badge
   //  2. OOM + heavy version → red warn w/ instant-fix button (platform also auto-heals within ~20s)
@@ -293,7 +293,7 @@ function renderServer(s) {
         : `
     <div class="sc-ip" title="Start the server to get its join address" style="opacity:0.7;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      <span style="flex:1;"><span style="font-weight:600;">Java:</span> address appears after you press ▶ Start</span>
+      <span style="flex:1;"><span style="font-weight:600;">Java:</span> ${t("dash_java_after_start")}</span>
     </div>`
     }
     ${
@@ -332,9 +332,9 @@ function renderServer(s) {
     ${crashHint}
 
     <div class="sc-meta">
-      <div class="sc-stat"><div class="v">${players}</div><div class="l">Players</div></div>
+      <div class="sc-stat"><div class="v">${players}</div><div class="l">${t("players")}</div></div>
       <div class="sc-stat"><div class="v">${cpu}</div><div class="l">CPU</div></div>
-      <div class="sc-stat"><div class="v">${uptime}</div><div class="l">Uptime</div></div>
+      <div class="sc-stat"><div class="v">${uptime}</div><div class="l">${t("uptime")}</div></div>
     </div>
 
     ${renderTpsSparkline(stats.tps_history, stats.tps)}
@@ -1510,10 +1510,11 @@ function updateSummary() {
     if (el) el.textContent = v;
   };
   set("statServers", servers.length);
-  set("statServersDelta", online.length + " online");
+  set("statServersDelta", t("dash_n_online").replace("{n}", online.length));
   set("statPlayers", totalPlayers);
   set("statTps", tps);
-  if (!online.length) set("statTpsDelta", "no servers running");
+  // Reset when servers come back, or the "none running" note stuck until reload.
+  set("statTpsDelta", online.length ? t("dash_tps_target") : t("dash_no_running"));
 
   // Side-foot plan badge — show top plan among the user's servers
   const topPlanId =
@@ -1530,17 +1531,18 @@ function updateSummary() {
       )[0] || "free";
   const planLabel =
     {
-      free: "Free",
+      free: t("free_plan"),
       dirt: "Dirt",
       stone: "Stone",
       iron: "Iron",
       diamond: "Diamond",
       netherite: "Netherite",
-    }[topPlanId] || "Free";
+    }[topPlanId] || t("free_plan");
   set("planName", planLabel);
+  set("statPlan", planLabel); // the Plan tile was static "Free" for every plan
   set(
     "planUsage",
-    `${servers.length} server${servers.length === 1 ? "" : "s"}`,
+    t(servers.length === 1 ? "dash_n_server" : "dash_n_servers").replace("{n}", servers.length),
   );
 }
 
@@ -1602,8 +1604,8 @@ async function loadServers() {
       isDemo = true;
       servers = DEMO_SERVERS;
       const nameEl = document.getElementById("userName");
-      if (nameEl) nameEl.textContent = "Visitor";
-      toast("Showing demo servers — sign in to manage real ones.", "warn");
+      if (nameEl) nameEl.textContent = t("dash_visitor");
+      toast(t("dash_demo_toast"), "warn");
     } else {
       isDemo = false;
       servers = [];
@@ -1917,8 +1919,8 @@ function renderHealthCard(s) {
         <div class="hc-stats">
           <div><span class="hc-stat-label">CPU</span><span>${s.stats.cpu}%</span></div>
           <div><span class="hc-stat-label">RAM</span><span>${s.stats.ram_used}/${s.stats.ram_max} MB (${ramPct}%)</span></div>
-          <div><span class="hc-stat-label">Players</span><span>${s.stats.players}/${s.stats.players_max || "?"}</span></div>
-          <div><span class="hc-stat-label">Uptime</span><span>${fmtUptimeD(s.stats.uptime)}</span></div>
+          <div><span class="hc-stat-label">${t("players")}</span><span>${s.stats.players}/${s.stats.players_max || "?"}</span></div>
+          <div><span class="hc-stat-label">${t("uptime")}</span><span>${fmtUptimeD(s.stats.uptime)}</span></div>
         </div>`
           : `
         <div class="hc-stats hc-stats-offline">Server is offline · no live stats</div>`

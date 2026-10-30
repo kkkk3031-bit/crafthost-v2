@@ -60,7 +60,7 @@
     </nav>
 
     <div class="side-foot">
-      <strong id="planName" data-i18n="free_plan">Free</strong>
+      <strong id="planName">Free</strong>
       <div class="text-muted" id="planUsage">0 servers</div>
     </div>
   </aside>
@@ -101,7 +101,7 @@
         <div class="stat-tile">
           <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M12 11v10"/></svg> <span data-i18n="stat_players_online">Players online</span></div>
           <div class="val" id="statPlayers">0</div>
-          <div class="delta" id="statPlayersDelta">across all servers</div>
+          <div class="delta" id="statPlayersDelta" data-i18n="dash_across_all">across all servers</div>
         </div>
         <div class="stat-tile">
           <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> <span data-i18n="stat_avg_tps">Avg. TPS</span></div>
@@ -111,7 +111,7 @@
         <div class="stat-tile">
           <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> <span data-i18n="stat_plan">Plan</span></div>
           <div class="val" id="statPlan">Free</div>
-          <div class="delta">10 GB volume · 24/7</div>
+          <div class="delta" data-i18n="dash_volume">10 GB volume · 24/7</div>
         </div>
       </div>
 
@@ -133,21 +133,21 @@
             <div class="qd-icon"><span class="msr">palette</span></div>
             <div class="qd-text">
               <div class="qd-name" data-i18n="qd_creative">Creative</div>
-              <div class="qd-meta">Paper 1.21.1 · Build</div>
+              <div class="qd-meta">Paper 1.21.1 · <span data-i18n="tpl_build">Build</span></div>
             </div>
           </button>
           <button class="qd-tile" onclick="quickDeploy('skyblock')" style="--c:#22D3EE;">
             <div class="qd-icon"><span class="msr">landscape</span></div>
             <div class="qd-text">
               <div class="qd-name" data-i18n="qd_skyblock">Skyblock</div>
-              <div class="qd-meta">Paper 1.21.1 · Island</div>
+              <div class="qd-meta">Paper 1.21.1 · <span data-i18n="tpl_island">Island</span></div>
             </div>
           </button>
           <button class="qd-tile" onclick="quickDeploy('modded')" style="--c:#A78BFA;">
             <div class="qd-icon"><span class="msr">extension</span></div>
             <div class="qd-text">
               <div class="qd-name" data-i18n="qd_modded">Modded</div>
-              <div class="qd-meta">Fabric 1.21.1 · Mods</div>
+              <div class="qd-meta">Fabric 1.21.1 · <span data-i18n="tpl_mods">Mods</span></div>
             </div>
           </button>
         </div>
