@@ -498,7 +498,7 @@ async function openLogs(sid, name) {
       </div>
       <div class="modal-foot" style="border-top:1px solid var(--glass-border);">
         <span class="text-muted" style="font-size:12px;margin-right:auto;" data-i18n="logs_last_lines">Last 200 lines · auto-refreshes</span>
-        <label class="flex items-center gap-2" style="font-size:13px;"><input type="checkbox" id="logsAuto" checked /> Auto-refresh</label>
+        <label class="flex items-center gap-2" style="font-size:13px;"><input type="checkbox" id="logsAuto" checked /> ${t("auto_refresh")}</label>
       </div>
     </div>
   `;
@@ -851,7 +851,7 @@ async function openBackups(sid, name) {
         </p>
       </div>
       <div class="modal-foot">
-        <button class="btn btn-ghost" onclick="document.getElementById('backupsModal').classList.remove('show')">Close</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('backupsModal').classList.remove('show')">${t("close")}</button>
         <button class="btn btn-primary" id="bkCreate">${t("bk_now")}</button>
       </div>
     </div>
@@ -1023,59 +1023,59 @@ async function openSettings(sid, name) {
           <div class="set-icon-row">
             <div class="set-icon-preview">
               <img id="set_icon_img" alt="Server icon" />
-              <div id="set_icon_empty" class="set-icon-empty">No icon</div>
+              <div id="set_icon_empty" class="set-icon-empty">${t("set_no_icon")}</div>
             </div>
             <div style="flex:1;min-width:0;">
-              <div class="label" style="margin-bottom:6px;">Server icon</div>
-              <p class="text-muted" style="font-size:11.5px;margin:0 0 8px;">PNG, 64×64 recommended. Shown to players in their server list.</p>
+              <div class="label" style="margin-bottom:6px;">${t("set_icon")}</div>
+              <p class="text-muted" style="font-size:11.5px;margin:0 0 8px;">${t("set_icon_hint")}</p>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <input type="file" id="set_icon_file" accept="image/png" style="display:none;" />
-                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('set_icon_file').click()">📁 Choose PNG</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('set_icon_file').click()">${t("set_choose_png")}</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="set_icon_remove" style="display:none;">Remove</button>
               </div>
               <div id="set_icon_status" style="font-size:12px;margin-top:6px;color:var(--slate-400);"></div>
             </div>
           </div>
-          <div class="field"><label class="label">MOTD <span class="text-muted" style="font-weight:400;font-size:11.5px;">(use &amp;X color codes)</span></label><input class="input" id="set_motd" maxlength="120" /></div>
+          <div class="field"><label class="label">MOTD <span class="text-muted" style="font-weight:400;font-size:11.5px;">${escapeHtml(t("set_motd_hint"))}</span></label><input class="input" id="set_motd" maxlength="120" /></div>
           <div class="motd-colors" id="motdColors"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="field"><label class="label">Gamemode</label>
-              <select class="select" id="set_gamemode"><option value="survival">Survival</option><option value="creative">Creative</option><option value="adventure">Adventure</option><option value="spectator">Spectator</option></select>
+            <div class="field"><label class="label">${t("set_gamemode")}</label>
+              <select class="select" id="set_gamemode"><option value="survival">${t("gm_survival")}</option><option value="creative">${t("gm_creative")}</option><option value="adventure">${t("gm_adventure")}</option><option value="spectator">${t("gm_spectator")}</option></select>
             </div>
-            <div class="field"><label class="label">Difficulty</label>
-              <select class="select" id="set_difficulty"><option value="peaceful">Peaceful</option><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select>
+            <div class="field"><label class="label">${t("set_difficulty")}</label>
+              <select class="select" id="set_difficulty"><option value="peaceful">${t("diff_peaceful")}</option><option value="easy">${t("diff_easy")}</option><option value="normal">${t("diff_normal")}</option><option value="hard">${t("diff_hard")}</option></select>
             </div>
-            <div class="field"><label class="label">Max Players</label><input class="input" type="number" id="set_max_players" min="1" max="999" /></div>
-            <div class="field"><label class="label">View Distance</label><input class="input" type="number" id="set_view_distance" min="3" max="32" /></div>
-            <div class="field"><label class="label">Simulation Distance</label><input class="input" type="number" id="set_simulation_distance" min="3" max="32" /></div>
-            <div class="field"><label class="label">Spawn Protection <span class="text-muted" style="font-weight:400;font-size:11.5px;">(blocks, 0=off)</span></label><input class="input" type="number" id="set_spawn_protection" min="0" max="64" /></div>
+            <div class="field"><label class="label">${t("set_max_players")}</label><input class="input" type="number" id="set_max_players" min="1" max="999" /></div>
+            <div class="field"><label class="label">${t("set_view_distance")}</label><input class="input" type="number" id="set_view_distance" min="3" max="32" /></div>
+            <div class="field"><label class="label">${t("set_sim_distance")}</label><input class="input" type="number" id="set_simulation_distance" min="3" max="32" /></div>
+            <div class="field"><label class="label">${t("set_spawn_protection")} <span class="text-muted" style="font-weight:400;font-size:11.5px;">${t("set_blocks_hint")}</span></label><input class="input" type="number" id="set_spawn_protection" min="0" max="64" /></div>
           </div>
           <div style="display:flex;gap:14px 18px;flex-wrap:wrap;margin-top:6px;">
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_pvp" /> Enable PvP</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_hardcore" /> Hardcore</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_whitelist" /> Whitelist</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_allow_flight" /> Allow flight</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_allow_nether" /> Allow Nether</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_command_blocks" /> Command blocks</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_force_gamemode" /> Force gamemode</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_spawn_monsters" /> Spawn monsters</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_spawn_animals" /> Spawn animals</label>
-            <label class="flex items-center gap-2"><input type="checkbox" id="set_spawn_npcs" /> Spawn villagers</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_pvp" /> ${t("set_pvp")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_hardcore" /> ${t("set_hardcore")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_whitelist" /> ${t("set_whitelist")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_allow_flight" /> ${t("set_flight")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_allow_nether" /> ${t("set_nether")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_command_blocks" /> ${t("set_cmd_blocks")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_force_gamemode" /> ${t("set_force_gm")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_spawn_monsters" /> ${t("set_monsters")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_spawn_animals" /> ${t("set_animals")}</label>
+            <label class="flex items-center gap-2"><input type="checkbox" id="set_spawn_npcs" /> ${t("set_villagers")}</label>
           </div>
           <div class="field" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--glass-border);">
-            <label class="label">⏰ Scheduled daily restart <span class="text-muted" style="font-weight:400;font-size:11.5px;">(UTC — clears memory leaks)</span></label>
+            <label class="label">${t("set_daily_restart")} <span class="text-muted" style="font-weight:400;font-size:11.5px;">${t("set_daily_hint")}</span></label>
             <div style="display:flex;gap:8px;align-items:center;">
               <input type="time" id="set_schedrestart" class="input" style="max-width:140px;" placeholder="HH:MM" />
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('set_schedrestart').value=''">Disable</button>
-              <span class="text-muted" style="font-size:12px;">Empty = off</span>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('set_schedrestart').value=''">${t("disable")}</button>
+              <span class="text-muted" style="font-size:12px;">${t("set_empty_off")}</span>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-foot">
-        <label class="flex items-center gap-2" style="margin-right:auto;"><input type="checkbox" id="set_restart" checked /> Restart to apply</label>
+        <label class="flex items-center gap-2" style="margin-right:auto;"><input type="checkbox" id="set_restart" checked /> ${t("set_restart_apply")}</label>
         <button class="btn btn-ghost" onclick="document.getElementById('settingsModal').classList.remove('show')">${t("cancel")}</button>
-        <button class="btn btn-primary" id="set_save" disabled>Save</button>
+        <button class="btn btn-primary" id="set_save" disabled>${t("save")}</button>
       </div>
     </div>
   `;
@@ -1343,7 +1343,7 @@ async function openSettings(sid, name) {
     html += span(text.slice(lastIdx));
     document.getElementById("motdPreview").innerHTML =
       html ||
-      '<span style="color:var(--slate-500);">Preview appears here</span>';
+      `<span style="color:var(--slate-500);">${t("set_motd_preview")}</span>`;
   }
   colorRow.querySelectorAll(".motd-sw, .motd-fmt").forEach((btn) => {
     btn.addEventListener("click", () => insertCode(btn.dataset.code));
@@ -2067,16 +2067,15 @@ async function openWorldImport(sid, sname) {
         </div>
         <div class="modal-body" style="padding:18px 20px;">
           <p style="margin:0 0 14px;color:var(--slate-300);font-size:13.5px;line-height:1.5;">
-            Upload a <strong>.zip</strong> of your single-player world (or one downloaded from Planet Minecraft).
-            We accept both layouts: a wrapper folder (<code>world/</code>) at root, or world internals at root (<code>level.dat</code>, <code>region/</code>).
+            ${t("wi_intro")}
           </p>
           <p id="wiTargetLine" style="margin:0 0 12px;color:var(--slate-400);font-size:12.5px;"></p>
           <div class="wi-drop" id="wiDrop">
             <input type="file" id="wiFile" accept=".zip,application/zip" style="display:none;" />
             <div class="wi-drop-empty">
               <div style="font-size:32px;line-height:1;margin-bottom:8px;">📦</div>
-              <div><strong>Click to choose</strong> or drop a .zip here</div>
-              <div style="font-size:12px;color:var(--slate-500);margin-top:4px;">Max 500 MB · server will be stopped & restarted</div>
+              <div>${t("wi_click")}</div>
+              <div style="font-size:12px;color:var(--slate-500);margin-top:4px;">${t("wi_limits")}</div>
             </div>
             <div class="wi-drop-file" style="display:none;">
               <div style="font-size:24px;margin-bottom:6px;">📦</div>
@@ -2095,12 +2094,12 @@ async function openWorldImport(sid, sname) {
           </div>
           <div id="wiStatus" style="margin-top:14px;font-size:13px;display:none;"></div>
           <p style="margin:14px 0 0;color:#fbbf24;font-size:11.5px;line-height:1.5;">
-            ⚠ This replaces your current world. There's no undo — consider clicking "Back up world" first via the file manager.
+            ${escapeHtml(t("wi_warn"))}
           </p>
         </div>
         <div class="modal-foot" style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--glass-border);">
           <button class="btn btn-ghost" onclick="closeWorldImport()">${t("cancel")}</button>
-          <button class="btn btn-primary" id="wiSubmit" disabled>🌍 Upload & restart</button>
+          <button class="btn btn-primary" id="wiSubmit" disabled>${t("wi_submit")}</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -2134,12 +2133,12 @@ async function openWorldImport(sid, sname) {
   } else {
     modal.classList.add("show");
   }
-  document.getElementById("wiTargetLine").textContent = `Target: ${sname}`;
+  document.getElementById("wiTargetLine").textContent = t("wi_target").replace("{name}", sname);
   document.getElementById("wiSubmit").dataset.sid = sid;
   document.getElementById("wiSubmit").dataset.sname = sname;
   // Reset state
   document.getElementById("wiSubmit").disabled = true;
-  document.getElementById("wiSubmit").innerHTML = "🌍 Upload & restart";
+  document.getElementById("wiSubmit").textContent = t("wi_submit");
   document.querySelector(".wi-drop-empty").style.display = "";
   document.querySelector(".wi-drop-file").style.display = "none";
   document.getElementById("wiProgress").style.display = "none";
@@ -2253,7 +2252,7 @@ async function openBedrockModal(sid, sname) {
     div.innerHTML = `
       <div class="modal" style="max-width:520px;width:100%;background:var(--slate-800);border:1px solid var(--glass-border);border-radius:14px;overflow:hidden;">
         <div class="modal-head" style="padding:16px 20px;border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center;">
-          <h3 style="margin:0;font-size:16px;font-weight:700;">📱 Bedrock cross-play</h3>
+          <h3 style="margin:0;font-size:16px;font-weight:700;">${t("br_title")}</h3>
           <button class="close-btn" onclick="closeBedrockModal()" style="background:none;border:none;color:var(--slate-400);cursor:pointer;padding:4px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -2336,8 +2335,8 @@ async function renderBedrockStatus(sid, sname) {
         ${restartHint}
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           ${status.restart_required ? `<button class="btn btn-warning btn-sm" onclick="serverAction('${escapeHtml(sid)}', 'restart'); closeBedrockModal();">⟳ Restart now</button>` : ""}
-          <button class="btn btn-secondary btn-sm" onclick="closeBedrockModal()">Close</button>
-          <button class="btn btn-danger btn-sm" onclick="disableBedrock('${escapeHtml(sid)}')">Disable</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeBedrockModal()">${t("close")}</button>
+          <button class="btn btn-danger btn-sm" onclick="disableBedrock('${escapeHtml(sid)}')">${t("disable")}</button>
         </div>`;
       return;
     }
@@ -2366,7 +2365,7 @@ async function renderBedrockStatus(sid, sname) {
           <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button class="btn btn-warning btn-sm" onclick="delete window.__bedrockConnectingSince['${escapeHtml(sid)}']; serverAction('${escapeHtml(sid)}', 'restart'); closeBedrockModal();">⟳ Restart server</button>
             <button class="btn btn-secondary btn-sm" onclick="delete window.__bedrockConnectingSince['${escapeHtml(sid)}']; renderBedrockStatus('${escapeHtml(sid)}', '${jsArg(sname)}')">↻ Retry</button>
-            <button class="btn btn-danger btn-sm" onclick="disableBedrock('${escapeHtml(sid)}')">Disable</button>
+            <button class="btn btn-danger btn-sm" onclick="disableBedrock('${escapeHtml(sid)}')">${t("disable")}</button>
           </div>`;
         // Keep polling — the address may still show up on its own.
         if (bedrockPollTimer) clearInterval(bedrockPollTimer);
@@ -2384,7 +2383,7 @@ async function renderBedrockStatus(sid, sname) {
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button class="btn btn-secondary btn-sm" onclick="renderBedrockStatus('${escapeHtml(sid)}', '${jsArg(sname)}')">↻ Refresh</button>
-          <button class="btn btn-secondary btn-sm" onclick="closeBedrockModal()">Close</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeBedrockModal()">${t("close")}</button>
         </div>`;
       // Auto-refresh every 3s
       if (bedrockPollTimer) clearInterval(bedrockPollTimer);
@@ -2448,16 +2447,14 @@ async function renderBedrockStatus(sid, sname) {
     // Only if that's not configured does it fall back to the per-server claim flow.
     body.innerHTML = `
       <div style="margin-bottom:16px;">
-        Bedrock Edition players (mobile / Xbox / Switch / PlayStation) need a <strong>UDP-capable tunnel</strong> to connect.
-        One click turns it on — no signup, no extra tabs.
+        ${t("br_intro")}
       </div>
       <div style="background:var(--slate-700);border-radius:9px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--slate-300);">
-        Click <em>Enable</em> and CraftHost provisions a <code>xxx.gl.ply.gg:&lt;port&gt;</code> address, then
-        auto-installs Geyser + Floodgate so Java and Bedrock players share the same world.
+        ${t("br_how")}
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn btn-secondary btn-sm" onclick="closeBedrockModal()">${t("cancel")}</button>
-        <button class="btn btn-primary btn-sm" id="bedrockEnableBtn" onclick="enableBedrock('${escapeHtml(sid)}', '${jsArg(sname)}')">⚡ Enable Bedrock cross-play</button>
+        <button class="btn btn-primary btn-sm" id="bedrockEnableBtn" onclick="enableBedrock('${escapeHtml(sid)}', '${jsArg(sname)}')">${t("br_enable")}</button>
       </div>`;
   } catch (err) {
     body.innerHTML = `<div style="color:var(--rose);">Error: ${escapeHtml(err.message)}</div>`;
@@ -2507,13 +2504,13 @@ async function doEnableBedrock(sid, sname, takeover) {
       if (move) return doEnableBedrock(sid, sname, true);
       if (btn) {
         btn.disabled = false;
-        btn.textContent = "⚡ Enable Bedrock cross-play";
+        btn.textContent = t("br_enable");
       }
       return;
     }
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "⚡ Enable Bedrock cross-play";
+      btn.textContent = t("br_enable");
     }
     toast(err.message, "error");
   }

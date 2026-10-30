@@ -47,9 +47,14 @@
 <script src="/js/app.js"></script>
 <script>
 const token = new URLSearchParams(location.search).get('token');
+// #hint is script-owned (hint or error), so it is set here rather than via data-i18n.
+const hint = document.getElementById('hint');
 if (!token) {
-  document.getElementById('hint').innerHTML = '<span style="color:var(--red);">Missing reset token in the URL. Use the link from the reset request.</span>';
+  hint.innerHTML = '<span style="color:var(--red);"></span>';
+  hint.firstChild.textContent = t('auth_missing_token');
   document.getElementById('resetForm').style.display = 'none';
+} else {
+  hint.textContent = t('auth_new_pw_hint');
 }
 document.getElementById('resetForm').addEventListener('submit', async (e) => {
   e.preventDefault();
