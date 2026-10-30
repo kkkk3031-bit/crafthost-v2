@@ -1756,22 +1756,26 @@ async function getStats(containerId, server) {
   }
   const pid = state.pid;
 
-  // CPU: sample twice over 200ms
-  const t1 = readProcStat(pid);
-  const wall1 = Date.now();
-  await new Promise((r) => setTimeout(r, 200));
-  const t2 = readProcStat(pid);
-  const wall2 = Date.now();
+  // CPU: compare against the previous poll's sample (kept on state) instead of
+  // sleeping 200ms on every call. Polls are seconds apart, which also gives a
+  // steadier average. Only the very first call per process waits for a sample.
   const clockTick = 100; // jiffies per second (Alpine default)
   const ncpu = require("os").cpus().length;
-  let cpu = 0;
-  if (t1 != null && t2 != null) {
-    const deltaTicks = t2 - t1;
-    const deltaMs = wall2 - wall1;
+  let prev = state.cpuSample?.pid === pid ? state.cpuSample : null;
+  if (!prev) {
+    prev = { pid, ticks: readProcStat(pid), wall: Date.now() };
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const now = { pid, ticks: readProcStat(pid), wall: Date.now() };
+  let cpu = state.cpuPct || 0;
+  // Several tabs can poll within the same instant: reuse the last value then.
+  if (prev.ticks != null && now.ticks != null && now.wall - prev.wall >= 150) {
     cpu = Math.min(
       100,
-      Math.round(((((deltaTicks / clockTick) * 1000) / deltaMs) * 100) / ncpu),
+      Math.round(((((now.ticks - prev.ticks) / clockTick) * 1000) / (now.wall - prev.wall)) * 100 / ncpu),
     );
+    state.cpuPct = cpu;
+    state.cpuSample = now;
   }
 
   const rssKb = readProcRssKb(pid) || 0;
