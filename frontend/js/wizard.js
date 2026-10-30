@@ -222,10 +222,10 @@ function renderWizard() {
         wizState.step < 4 && !canAdvance()
           ? `<span class="wiz-foot-hint" style="color:var(--text-disabled);font-size:13px;margin-right:auto;align-self:center;">${
               wizState.step === 1
-                ? "Pick an engine to continue"
+                ? window.t("wiz_hint_engine")
                 : wizState.step === 2
-                  ? "Pick a version to continue"
-                  : "Enter a server name to continue"
+                  ? window.t("wiz_hint_version")
+                  : window.t("wiz_hint_name")
             }</span>`
           : ""
       }
@@ -279,18 +279,18 @@ function renderStep1() {
 function renderStep2() {
   if (wizState.type === "custom") {
     return `
-      <p class="text-muted mb-6">Upload your custom server JAR. Max 500MB, will be virus-scanned.</p>
+      <p class="text-muted mb-6">${window.t("wiz_custom_intro")}</p>
       <div class="upload-zone" id="dropZone" onclick="document.getElementById('jarInput').click()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <p><strong>Click to upload</strong> or drag-drop your .jar file</p>
-        <small>Max 500MB · Will be validated before launch</small>
+        <p>${window.t("wiz_click_upload")}</p>
+        <small>${window.t("wiz_jar_limits")}</small>
         <input type="file" id="jarInput" accept=".jar" style="display:none" onchange="handleJar(event)" />
       </div>
       ${
         wizState.customJar
           ? `<div class="card mt-4" style="display:flex;justify-content:space-between;align-items:center;">
-        <div>📦 <strong>${wizState.customJar.name}</strong><br><small class="text-muted">${fmtBytes(wizState.customJar.size)}</small></div>
-        <button class="btn btn-ghost btn-sm" onclick="wizState.customJar=null;renderWizard()">Remove</button>
+        <div>📦 <strong>${escapeHtmlW(wizState.customJar.name)}</strong><br><small class="text-muted">${fmtBytes(wizState.customJar.size)}</small></div>
+        <button class="btn btn-ghost btn-sm" onclick="wizState.customJar=null;renderWizard()">${window.t("remove")}</button>
       </div>`
           : ""
       }
@@ -320,9 +320,9 @@ function renderStep2() {
         renderWizard();
       });
     return `
-      <p class="text-muted mb-6">Choose your Minecraft version.</p>
+      <p class="text-muted mb-6">${window.t("wiz_choose_version")}</p>
       <div class="field"><div class="skel" style="height:42px;"></div></div>
-      <p class="text-muted" style="font-size:13px;">Loading versions from ${SERVER_TYPES.find((t) => t.id === wizState.type)?.name || ""}…</p>
+      <p class="text-muted" style="font-size:13px;">${window.t("wiz_loading_versions").replace("{name}", SERVER_TYPES.find((x) => x.id === wizState.type)?.name || "")}</p>
     `;
   }
   const live = cached.length ? cached : MC_VERSIONS;
@@ -346,18 +346,17 @@ function renderStep2() {
   const heavyWarn = planRisky
     ? `
     <div class="wiz-warn" role="alert">
-      <strong>⚠ This version may run out of memory on the Free plan.</strong>
-      <p>Minecraft ${wizState.version} needs more memory than your plan provides. Pick a lighter version to avoid OOM.</p>
+      <strong>${window.t("wiz_heavy_title")}</strong>
+      <p>${window.t("wiz_heavy_body").replace("{v}", wizState.version)}</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
-        <button class="btn btn-secondary btn-sm" onclick="wizState.version='${recommended}';renderWizard()">Use ${recommended} instead (recommended)</button>
-        <span class="text-muted" style="font-size:12px;">— or upgrade your plan in Step 3.</span>
+        <button class="btn btn-secondary btn-sm" onclick="wizState.version='${recommended}';renderWizard()">${window.t("wiz_use_instead").replace("{v}", recommended)}</button>
       </div>
     </div>`
     : "";
   return `
-    <p class="text-muted mb-6">Choose your Minecraft version. Showing <strong>${live.length}</strong> releases (newest first).</p>
+    <p class="text-muted mb-6">${window.t("wiz_showing").replace("{n}", live.length)}</p>
     <div class="field">
-      <label class="label">Version</label>
+      <label class="label">${window.t("wiz_step_version")}</label>
       <select class="select" onchange="wizState.version=this.value;renderWizard()">
         ${groupKeys
           .map(
@@ -367,11 +366,11 @@ function renderStep2() {
               .map((v) => {
                 const id = v.id || v.name;
                 const tags = [];
-                if (id === (live[0]?.id || live[0])) tags.push("Latest");
+                if (id === (live[0]?.id || live[0])) tags.push(window.t("tag_latest"));
                 if (wizState.plan === "free" && isHeavyVersion(id))
-                  tags.push("⚠ may OOM");
+                  tags.push(window.t("tag_may_oom"));
                 if (id === recommended && wizState.plan === "free")
-                  tags.push("✓ recommended");
+                  tags.push(window.t("tag_recommended"));
                 const tag = tags.length ? ` — ${tags.join(" · ")}` : "";
                 return `<option value="${id}" ${wizState.version === id ? "selected" : ""}>${id}${tag}</option>`;
               })
@@ -383,46 +382,40 @@ function renderStep2() {
       </select>
     </div>
     ${heavyWarn}
-    <p class="text-muted" style="font-size:13px;">Selected: <span class="text-emerald">${SERVER_TYPES.find((t) => t.id === wizState.type)?.name} ${wizState.version}</span></p>
+    <p class="text-muted" style="font-size:13px;">${window.t("wiz_selected")} <span class="text-emerald">${SERVER_TYPES.find((x) => x.id === wizState.type)?.name} ${wizState.version}</span></p>
     ${renderBedrockToggle()}
   `;
 }
 
 function renderStep3() {
   return `
-    <p class="text-muted mb-4" style="font-size:13px;">Configure your server.</p>
+    <p class="text-muted mb-4" style="font-size:13px;">${window.t("wiz_configure")}</p>
     <div class="field">
-      <label class="label">Server Name</label>
-      <input type="text" class="input" placeholder="My Awesome Server" value="${wizState.name}" oninput="wizState.name=this.value;document.getElementById('nextBtn').disabled=this.value.trim().length<1" />
+      <label class="label">${window.t("wiz_server_name")}</label>
+      <input type="text" class="input" placeholder="${escapeHtmlW(window.t("wiz_name_ph"))}" value="${escapeHtmlW(wizState.name)}" oninput="wizState.name=this.value;document.getElementById('nextBtn').disabled=this.value.trim().length<1" />
     </div>
     <div class="field">
-      <label class="label">MOTD (Server Message)</label>
-      <input type="text" class="input" value="${wizState.motd}" oninput="wizState.motd=this.value" maxlength="59" />
+      <label class="label">${window.t("wiz_motd")}</label>
+      <input type="text" class="input" value="${escapeHtmlW(wizState.motd)}" oninput="wizState.motd=this.value" maxlength="59" />
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
       <div class="field">
-        <label class="label">Gamemode</label>
+        <label class="label">${window.t("set_gamemode")}</label>
         <select class="select" onchange="wizState.gamemode=this.value">
-          <option value="survival">Survival</option>
-          <option value="creative">Creative</option>
-          <option value="adventure">Adventure</option>
-          <option value="spectator">Spectator</option>
+          ${["survival", "creative", "adventure", "spectator"].map((v) => `<option value="${v}" ${wizState.gamemode === v ? "selected" : ""}>${window.t("gm_" + v)}</option>`).join("")}
         </select>
       </div>
       <div class="field">
-        <label class="label">Difficulty</label>
+        <label class="label">${window.t("set_difficulty")}</label>
         <select class="select" onchange="wizState.difficulty=this.value">
-          <option value="peaceful">Peaceful</option>
-          <option value="easy">Easy</option>
-          <option value="normal" selected>Normal</option>
-          <option value="hard">Hard</option>
+          ${["peaceful", "easy", "normal", "hard"].map((v) => `<option value="${v}" ${wizState.difficulty === v ? "selected" : ""}>${window.t("diff_" + v)}</option>`).join("")}
         </select>
       </div>
       <div class="field">
-        <label class="label">Whitelist</label>
+        <label class="label">${window.t("set_whitelist")}</label>
         <select class="select" onchange="wizState.whitelist=this.value==='true'">
-          <option value="false">Off</option>
-          <option value="true">On</option>
+          <option value="false" ${!wizState.whitelist ? "selected" : ""}>${window.t("off")}</option>
+          <option value="true" ${wizState.whitelist ? "selected" : ""}>${window.t("on")}</option>
         </select>
       </div>
     </div>
@@ -439,18 +432,19 @@ function renderStarterPlugins() {
   if (!supportsPlugins) return "";
   return `
     <div class="field" style="margin-top:18px;">
-      <label class="label">Starter plugins (optional)</label>
-      <p class="text-muted" style="font-size:12.5px;margin-bottom:10px;">Pre-installed on first boot. Toggle the ones you want — you can always install more later from the Marketplace.</p>
+      <label class="label">${window.t("wiz_starter")}</label>
+      <p class="text-muted" style="font-size:12.5px;margin-bottom:10px;">${window.t("wiz_starter_desc")}</p>
       <div class="plugin-chips">
         ${STARTER_PLUGINS.filter((p) => !p.bedrock)
           .map((p) => {
             const on = (wizState.starterPlugins || []).includes(p.id);
+            const desc = window.tOr("pl_desc_" + p.name.toLowerCase(), p.desc);
             return `
-            <button type="button" class="pl-chip ${on ? "on" : ""}" onclick="toggleStarterPlugin('${p.id}')" title="${escapeHtmlW(p.desc)}">
+            <button type="button" class="pl-chip ${on ? "on" : ""}" onclick="toggleStarterPlugin('${p.id}')" title="${escapeHtmlW(desc)}">
               <span class="pl-chip-icon">${p.icon}</span>
               <span class="pl-chip-text">
                 <span class="pl-chip-name">${p.name}</span>
-                <span class="pl-chip-desc">${escapeHtmlW(p.desc)}</span>
+                <span class="pl-chip-desc">${escapeHtmlW(desc)}</span>
               </span>
               <span class="pl-chip-check">${on ? "✓" : "+"}</span>
             </button>
@@ -488,8 +482,8 @@ function renderBedrockToggle() {
                 background:${on ? "rgba(16,185,129,0.10)" : "rgba(255,255,255,0.03)"};transition:all .18s;">
       <span style="font-size:22px;line-height:1;">📱</span>
       <span style="flex:1;">
-        <span style="display:block;font-weight:700;font-size:13.5px;">Bedrock cross-play</span>
-        <span style="display:block;font-size:12px;color:var(--text-muted, #9aa);">Let mobile / Xbox / Switch / PS players join. Bridges Bedrock players through Geyser and opens the Bedrock tunnel automatically.</span>
+        <span style="display:block;font-weight:700;font-size:13.5px;">${window.t("wiz_bedrock")}</span>
+        <span style="display:block;font-size:12px;color:var(--text-muted, #9aa);">${window.t("wiz_bedrock_desc")}</span>
       </span>
       <span aria-hidden="true" style="flex:none;width:40px;height:23px;border-radius:999px;position:relative;transition:background .18s;
             background:${on ? "var(--emerald)" : "rgba(255,255,255,0.18)"};">
@@ -518,18 +512,18 @@ function renderStep4() {
   const type = SERVER_TYPES.find((t) => t.id === wizState.type);
   const plan = PLANS.find((p) => p.id === wizState.plan);
   return `
-    <p class="text-muted mb-6">Review and confirm.</p>
+    <p class="text-muted mb-6">${window.t("wiz_review")}</p>
     <div class="review-list">
-      <div class="review-row"><span class="l">Server Name</span><span class="v">${wizState.name}</span></div>
-      <div class="review-row"><span class="l">Type</span><span class="v">${type.name}${wizState.customJar ? ` · ${wizState.customJar.name}` : ` ${wizState.version}`}</span></div>
-      <div class="review-row"><span class="l">Plan</span><span class="v">${plan.name} — ${plan.price === 0 ? "FREE" : "$" + plan.price + "/mo"}</span></div>
-      <div class="review-row"><span class="l">Resources</span><span class="v">${plan.ram / 1024} GB RAM · ${plan.cpu} CPU · ${plan.slots} slots</span></div>
-      <div class="review-row"><span class="l">Region</span><span class="v">${wizState.region.toUpperCase()}</span></div>
-      <div class="review-row"><span class="l">Gamemode</span><span class="v">${wizState.gamemode} (${wizState.difficulty})</span></div>
-      <div class="review-row"><span class="l">Whitelist</span><span class="v">${wizState.whitelist ? "On" : "Off"}</span></div>
-      <div class="review-row"><span class="l">Bedrock cross-play</span><span class="v">${wizState.bedrock ? "📱 On" : "Off"}</span></div>
+      <div class="review-row"><span class="l">${window.t("wiz_server_name")}</span><span class="v">${escapeHtmlW(wizState.name)}</span></div>
+      <div class="review-row"><span class="l">${window.t("wiz_step_type")}</span><span class="v">${type.name}${wizState.customJar ? ` · ${escapeHtmlW(wizState.customJar.name)}` : ` ${wizState.version}`}</span></div>
+      <div class="review-row"><span class="l">${window.t("plan")}</span><span class="v">${plan.name} — ${plan.price === 0 ? window.t("price_free") : window.t("price_per_month").replace("{p}", plan.price)}</span></div>
+      <div class="review-row"><span class="l">${window.t("resources")}</span><span class="v">${window.t("wiz_resources").replace("{ram}", plan.ram / 1024).replace("{cpu}", plan.cpu).replace("{slots}", plan.slots)}</span></div>
+      <div class="review-row"><span class="l">${window.t("region")}</span><span class="v">${wizState.region.toUpperCase()}</span></div>
+      <div class="review-row"><span class="l">${window.t("set_gamemode")}</span><span class="v">${window.t("gm_" + wizState.gamemode)} (${window.t("diff_" + wizState.difficulty)})</span></div>
+      <div class="review-row"><span class="l">${window.t("set_whitelist")}</span><span class="v">${window.t(wizState.whitelist ? "on" : "off")}</span></div>
+      <div class="review-row"><span class="l">${window.t("wiz_bedrock")}</span><span class="v">${wizState.bedrock ? "📱 " + window.t("on") : window.t("off")}</span></div>
     </div>
-    <p class="text-muted mt-6" style="font-size:13px;">Your server will be deployed to <span class="text-emerald">${wizState.region.toUpperCase()}</span> region. Boot time is typically 30–90 seconds.</p>
+    <p class="text-muted mt-6" style="font-size:13px;">${window.t("wiz_deploy_note").replace("{region}", escapeHtmlW(wizState.region.toUpperCase()))}</p>
   `;
 }
 
