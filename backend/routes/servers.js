@@ -354,8 +354,7 @@ async function createServerForUser(user, opts, ip) {
       const fsp = require("fs/promises");
       const pathMod = require("path");
       const DATA_DIR =
-        process.env.DATA_DIR ||
-        pathMod.resolve(__dirname, "../../data/servers");
+        require("../lib/paths").DATA_DIR;
       const ownerPath = pathMod.join(DATA_DIR, id, "owner.txt");
       const lines = [
         `# CraftHost server ownership record`,
@@ -384,7 +383,7 @@ async function createServerForUser(user, opts, ip) {
         const fsp = require("fs/promises");
         const path = require("path");
         const DATA_DIR =
-          process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+          require("../lib/paths").DATA_DIR;
         const propsPath = path.join(DATA_DIR, id, "server.properties");
         await fsp.mkdir(path.dirname(propsPath), { recursive: true });
         let existing = "";
@@ -534,7 +533,7 @@ router.post("/clone", async (req, res) => {
   const fs = require("fs");
   const path = require("path");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
 
   let out;
   try {
@@ -947,7 +946,7 @@ async function seedDefaultPlugins(userId, serverId, projectIds, mcVersion) {
   const fsp = require("fs/promises");
   const pluginCache = require("../lib/plugin-cache");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   const pluginsDir = path.join(DATA_DIR, serverId, "plugins");
   await fsp.mkdir(pluginsDir, { recursive: true });
   const ids = (Array.isArray(projectIds) ? projectIds : [projectIds]).filter(
@@ -1353,7 +1352,7 @@ router.patch("/:id", async (req, res) => {
   const path = require("path");
   const fs = require("fs");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   const propPath = path.join(DATA_DIR, s.id, "server.properties");
   let props = {};
   if (fs.existsSync(propPath)) {
@@ -1459,7 +1458,7 @@ router.get("/:id/progress", (req, res) => {
   const path = require("path");
   const fs = require("fs");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   const id = String(s.container_id || "").replace(/^jvm-/, "") || s.id;
   const state = require("../lib/jvm-controller").__getState(id);
   const logs = (state?.logs || []).join("\n");
@@ -1682,7 +1681,7 @@ router.get("/:id/properties", (req, res) => {
   const path = require("path");
   const fs = require("fs");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   const propPath = path.join(DATA_DIR, s.id, "server.properties");
   if (!fs.existsSync(propPath)) return res.json({ properties: {} });
   const props = {};
@@ -1894,7 +1893,7 @@ router.get("/:id/playit/claim/status", (req, res) => {
       const path = require("path");
       const fs = require("fs");
       const DATA_DIR =
-        process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+        require("../lib/paths").DATA_DIR;
       if (spigotFamily) {
         // Auto-install Geyser + Floodgate from the per-MC plugin cache. Idempotent —
         // re-running is harmless (cache hardlink errors on EEXIST are swallowed).
@@ -2055,7 +2054,7 @@ router.post("/:id/swap-jar", async (req, res) => {
   const path = require("path");
   const fsp = require("fs/promises");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
 
   oplock.acquire(s.id, "swap");
   const prev = { type: s.type, version: s.version };
@@ -2264,7 +2263,7 @@ router.post(
     const path = require("path");
     const AdmZip = require("adm-zip");
     const DATA_DIR =
-      process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+      require("../lib/paths").DATA_DIR;
     const root = path.join(DATA_DIR, s.id);
 
     async function rmTree(p) {
@@ -2423,7 +2422,7 @@ router.post("/:id/icon", iconUpload.single("icon"), async (req, res) => {
   const fsp = require("fs/promises");
   const path = require("path");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   try {
     const buf = await fsp.readFile(req.file.path);
     // PNG signature: 89 50 4E 47 0D 0A 1A 0A
@@ -2459,7 +2458,7 @@ router.delete("/:id/icon", async (req, res) => {
   const fsp = require("fs/promises");
   const path = require("path");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   const dest = path.join(DATA_DIR, s.id, "server-icon.png");
   try {
     await fsp.unlink(dest);
@@ -2480,7 +2479,7 @@ router.get("/:id/icon", async (req, res) => {
   const fsp = require("fs/promises");
   const path = require("path");
   const DATA_DIR =
-    process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+    require("../lib/paths").DATA_DIR;
   const src = path.join(DATA_DIR, s.id, "server-icon.png");
   try {
     const buf = await fsp.readFile(src);

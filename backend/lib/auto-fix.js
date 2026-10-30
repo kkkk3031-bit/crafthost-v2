@@ -22,7 +22,7 @@ const net = require("net");
 const jvm = require("./jvm-controller");
 
 const DATA_DIR =
-  process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+  require("./paths").DATA_DIR;
 const FIX_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour per kind per server
 
 // ── Diagnostic patterns ───────────────────────────────────────────────────────

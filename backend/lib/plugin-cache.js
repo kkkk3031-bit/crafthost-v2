@@ -14,7 +14,7 @@ const fsp = require("fs/promises");
 const path = require("path");
 
 const DATA_DIR =
-  process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+  require("./paths").DATA_DIR;
 const CACHE_DIR = path.join(path.dirname(DATA_DIR), ".plugin-cache");
 const INDEX_FILE = path.join(CACHE_DIR, "_index.json");
 const MODRINTH = process.env.MODRINTH_API || "https://api.modrinth.com/v2";

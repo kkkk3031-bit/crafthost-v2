@@ -16,7 +16,7 @@ const { spawn, execFileSync } = require("child_process");
 const crypto = require("crypto");
 
 const DATA_DIR =
-  process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+  require("./paths").DATA_DIR;
 const PUBLIC_PORT = parseInt(process.env.MC_PORT || "25565", 10);
 // Cap heap to stay under Railway's container memory. Paper 1.21+ needs ~500MB
 // during DataFixers static init or it throws OutOfMemoryError. 480 is the

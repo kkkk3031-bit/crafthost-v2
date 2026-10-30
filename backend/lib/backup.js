@@ -9,7 +9,7 @@ const path = require('path');
 const crypto = require('crypto');
 const AdmZip = require('adm-zip');
 
-const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../../data/servers');
+const DATA_DIR = require("./paths").DATA_DIR;
 const BACKUP_DIR = process.env.BACKUP_DIR || path.resolve(__dirname, '../../data/backups');
 
 fs.mkdirSync(BACKUP_DIR, { recursive: true });

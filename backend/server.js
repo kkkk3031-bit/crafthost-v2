@@ -1,11 +1,5 @@
 require("dotenv").config();
 
-// Every module reads DATA_DIR straight from env, and the JVM runs with
-// cwd = the server's own folder. A relative DATA_DIR (e.g. "./data/servers" from
-// .env) made java look for data/servers/<id>/data/servers/<id>/server.jar, so
-// every server crashed instantly. Resolve it once, before anything reads it.
-if (process.env.DATA_DIR) process.env.DATA_DIR = require("path").resolve(process.env.DATA_DIR);
-
 // ─── EMERGENCY PRE-BOOT LOG PURGE ───────────────────────────────────────────
 // Runs SYNCHRONOUSLY before any DB import, before any other code. If the
 // volume is ENOSPC-full, the SQLite open will fail because it can't write WAL
@@ -18,7 +12,7 @@ if (process.env.EMERGENCY_PURGE !== "0") {
     const pathBoot = require("path");
     const { statfsSync } = fsSync;
     const DATA_DIR_BOOT =
-      process.env.DATA_DIR || pathBoot.resolve(__dirname, "../data/servers");
+      require("./lib/paths").DATA_DIR;
     const VOLUME_ROOT_BOOT = pathBoot.dirname(DATA_DIR_BOOT);
     let freeMb = 9999;
     try {
@@ -533,7 +527,7 @@ server.listen(PORT, async () => {
     const fsp = require("fs/promises");
     const pathMod = require("path");
     const DATA_DIR =
-      process.env.DATA_DIR || pathMod.resolve(__dirname, "../data/servers");
+      require("./lib/paths").DATA_DIR;
     const aggressive = process.env.JANITOR_AGGRESSIVE === "1";
     let entries;
     try {
@@ -969,8 +963,7 @@ server.listen(PORT, async () => {
               const fsp = require("fs/promises");
               const pathMod = require("path");
               const DATA_DIR =
-                process.env.DATA_DIR ||
-                pathMod.resolve(__dirname, "../data/servers");
+                require("./lib/paths").DATA_DIR;
               const serverRoot = pathMod.join(DATA_DIR, s.id);
               // Wipe server.jar so the controller re-downloads the safe version.
               await fsp
@@ -1176,7 +1169,7 @@ server.listen(PORT, async () => {
     const fspMod = require("fs/promises");
     const pathMod = require("path");
     const DATA_DIR =
-      process.env.DATA_DIR || pathMod.resolve(__dirname, "../data/servers");
+      require("./lib/paths").DATA_DIR;
     const VOLUME_ROOT = pathMod.dirname(DATA_DIR);
     async function dirSize(p) {
       let t = 0;
@@ -1266,7 +1259,7 @@ server.listen(PORT, async () => {
     const fspMod = require("fs/promises");
     const pathMod = require("path");
     const DATA_DIR =
-      process.env.DATA_DIR || pathMod.resolve(__dirname, "../data/servers");
+      require("./lib/paths").DATA_DIR;
     setInterval(
       async () => {
         try {
@@ -1384,7 +1377,7 @@ server.listen(PORT, async () => {
     const fspMod = require("fs/promises");
     const pathMod = require("path");
     const DATA_DIR =
-      process.env.DATA_DIR || pathMod.resolve(__dirname, "../data/servers");
+      require("./lib/paths").DATA_DIR;
     setInterval(
       async () => {
         try {
@@ -1633,7 +1626,7 @@ server.listen(PORT, async () => {
   try {
     const fs = require("fs");
     const DATA_DIR =
-      process.env.DATA_DIR || path.resolve(__dirname, "../data/servers");
+      require("./lib/paths").DATA_DIR;
     const orphans = db
       .prepare(
         `

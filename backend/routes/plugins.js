@@ -14,7 +14,7 @@ const { authMiddleware } = require('../lib/auth');
 const router = express.Router({ mergeParams: true });
 router.use(authMiddleware);
 
-const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../../data/servers');
+const DATA_DIR = require("../lib/paths").DATA_DIR;
 const MODRINTH = process.env.MODRINTH_API || 'https://api.modrinth.com/v2';
 const UA = 'CraftHost/1.0 (crafthost.up.railway.app)';
 const MAX_JAR_BYTES = 250 * 1024 * 1024; // 250 MB

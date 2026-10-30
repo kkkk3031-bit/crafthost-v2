@@ -15,7 +15,7 @@ const router = express.Router({ mergeParams: true });
 router.use(authMiddleware);
 
 const DATA_DIR =
-  process.env.DATA_DIR || path.resolve(__dirname, "../../data/servers");
+  require("../lib/paths").DATA_DIR;
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const MAX_EDITABLE_BYTES = 2 * 1024 * 1024; // 2 MB text edit cap

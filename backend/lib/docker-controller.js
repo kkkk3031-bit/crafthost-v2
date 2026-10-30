@@ -14,7 +14,7 @@ try {
   console.warn('[docker-controller] dockerode unavailable — running in stub mode');
 }
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data/servers');
+const DATA_DIR = require("./paths").DATA_DIR;
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
 async function isDockerAvailable() {
