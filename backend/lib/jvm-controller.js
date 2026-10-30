@@ -2367,7 +2367,38 @@ async function checkJarCacheHealth() {
   return out;
 }
 
+// Backend shutdown (SIGTERM on redeploy, SIGINT): JVMs are separate processes
+// and would outlive Node, holding ports and worlds. Ask each to "stop" (saves
+// the world), then SIGKILL whatever is still alive after graceMs.
+async function shutdownAll(graceMs = 8000) {
+  const procs = [];
+  for (const [id, state] of running) {
+    const proc = state?.proc;
+    if (!proc || proc.exitCode !== null || proc.signalCode !== null) continue;
+    state.intentional = true; // don't let the exit handler schedule a restart
+    stopBedrockSidecar(id);
+    procs.push(proc);
+    try {
+      proc.stdin.write("stop\n");
+    } catch {}
+  }
+  if (!procs.length) return 0;
+  await Promise.race([
+    Promise.all(procs.map((p) => new Promise((r) => (p.exitCode !== null ? r() : p.once("exit", r))))),
+    new Promise((r) => setTimeout(r, graceMs)),
+  ]);
+  for (const p of procs) {
+    if (p.exitCode === null && p.signalCode === null) {
+      try {
+        p.kill("SIGKILL");
+      } catch {}
+    }
+  }
+  return procs.length;
+}
+
 module.exports = {
+  shutdownAll,
   isAvailable,
   makeRconPassword,
   geyserUdpPort,

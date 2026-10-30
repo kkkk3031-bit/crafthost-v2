@@ -485,6 +485,19 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 const PORT = parseInt(process.env.PORT || "4000", 10);
+// Stop Minecraft JVMs with the backend so none are left orphaned on a port.
+let shuttingDown = false;
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.once(sig, async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] ${sig}: stopping Minecraft servers…`);
+    const n = await jvmCtl.shutdownAll().catch(() => 0);
+    console.log(`[shutdown] stopped ${n} server(s); exiting`);
+    process.exit(0);
+  });
+}
+
 server.listen(PORT, async () => {
   console.log(`✓ CraftHost listening on http://localhost:${PORT}`);
   const backend = await dc.backendName();

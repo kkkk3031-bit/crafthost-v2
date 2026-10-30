@@ -11,3 +11,4 @@ jars/*.jar
 .DS_Store
 data/.jar-cache/
 data/.plugin-cache/
+data/.smoke-*/
