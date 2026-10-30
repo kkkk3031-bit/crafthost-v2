@@ -185,6 +185,13 @@ router.get("/", (req, res) => {
   });
 });
 
+// Engines a server may run, and the shape of a version string. Shared by create
+// and swap-jar: version reaches download URLs and the Windows .bat starter
+// (where "&" would run commands), so it must stay a plain token.
+const SERVER_TYPES = new Set(["paper", "vanilla", "purpur", "fabric", "spigot", "forge", "neoforge"]);
+const VERSION_RE = /^[0-9A-Za-z][0-9A-Za-z._-]{0,31}$/;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
 // Per-user server cap. Every account may create up to MAX_SERVERS_PER_USER
 // servers total. Exempt (unlimited): role 'admin', or a username listed in
 // UNLIMITED_USERS (case-insensitive). Emails are never verified, so they can't
@@ -251,6 +258,13 @@ async function createServerForUser(user, opts, ip) {
     e.status = 400;
     throw e;
   }
+  const bad = (msg) => Object.assign(new Error(msg), { status: 400 });
+  // "custom" = the user uploaded their own JAR (customJarPath); no version needed.
+  if (!(SERVER_TYPES.has(type) || (type === "custom" && customJarPath))) throw bad("Unsupported type");
+  if (version != null && version !== "" && !VERSION_RE.test(String(version))) throw bad("Invalid version");
+  if (name != null && (typeof name !== "string" || name.length > 48 || CONTROL_CHARS.test(name)))
+    throw bad("Server name must be text, up to 48 characters");
+  if (motd != null && (typeof motd !== "string" || motd.length > 256)) throw bad("MOTD must be text, up to 256 characters");
 
   const planRow = db.prepare("SELECT * FROM plans WHERE id = ?").get(plan);
   if (!planRow) {
@@ -476,7 +490,17 @@ async function createServerForUser(user, opts, ip) {
 
 router.post("/", async (req, res) => {
   try {
-    const out = await createServerForUser(req.user, req.body || {}, req.ip);
+    const opts = { ...(req.body || {}) };
+    // customJarPath is the id of a JAR from the caller's own library (/api/jars),
+    // never a client-chosen path or someone else's upload.
+    if (opts.customJarPath != null) {
+      const owned = db
+        .prepare("SELECT id FROM jars WHERE id = ? AND user_id = ?")
+        .get(String(opts.customJarPath), req.user.id);
+      if (!owned) return res.status(400).json({ error: "Unknown JAR" });
+      opts.customJarPath = owned.id;
+    }
+    const out = await createServerForUser(req.user, opts, req.ip);
     res.json(out);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -1997,22 +2021,9 @@ router.post("/:id/swap-jar", async (req, res) => {
   if (!s) return;
   const { type, version, force } = req.body || {};
   if (!type) return res.status(400).json({ error: "Missing type" });
-  const allowed = new Set([
-    "paper",
-    "vanilla",
-    "purpur",
-    "fabric",
-    "spigot",
-    "forge",
-    "neoforge",
-  ]);
-  if (!allowed.has(type))
+  if (!SERVER_TYPES.has(type))
     return res.status(400).json({ error: "Unsupported type" });
-  if (
-    version != null &&
-    version !== "" &&
-    !/^[0-9A-Za-z][0-9A-Za-z._-]{0,31}$/.test(String(version))
-  )
+  if (version != null && version !== "" && !VERSION_RE.test(String(version)))
     return res
       .status(400)
       .json({ error: "Invalid version", code: "bad_version" });

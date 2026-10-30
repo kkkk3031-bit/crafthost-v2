@@ -119,6 +119,17 @@ console.log(`${Y('▶')} Concurrent sign-ups with the same email`);
   if (winner) await api('/api/auth/me', { method: 'DELETE', token: winner.body.token, body: { password, confirm: 'DELETE' } });
 }
 
+console.log(`${Y('▶')} Server create rejects unsafe input`);
+for (const [label, body] of [
+  ['unknown engine', { type: 'evil', plan: 'free' }],
+  ['version with "&" (would run commands in the .bat starter)', { type: 'paper', version: '1.21 & calc', plan: 'free' }],
+  ['name with a newline', { type: 'paper', version: '1.21.1', plan: 'free', name: 'a\nb' }],
+  ['someone else\'s / made-up JAR id', { type: 'custom', plan: 'free', customJarPath: '/etc/passwd' }],
+]) {
+  const r = await api('/api/servers', { method: 'POST', token: newToken, body });
+  check(r.status === 400, `${label} → 400 (got ${r.status}${r.body?.error ? ': ' + r.body.error : ''})`);
+}
+
 console.log(`${Y('▶')} Owner username alone grants nothing`);
 {
   // On a fresh DB nobody owns the owner's name: whoever registers it must not become admin.

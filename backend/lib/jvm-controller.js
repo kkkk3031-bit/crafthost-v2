@@ -1569,6 +1569,15 @@ async function removeServer(containerId, server) {
   return { status: "removed" };
 }
 
+// Sanitisers for status-ping (SLP) fields, which the server's JAR controls.
+function slpCount(v) {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 && n <= 1e6 ? n : null;
+}
+function slpText(v, max) {
+  return typeof v === "string" ? v.slice(0, max) : "";
+}
+
 function readProcStat(pid) {
   try {
     const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
@@ -1809,14 +1818,22 @@ async function getStats(containerId, server) {
     mspt: tick?.mspt ?? null, // real via RCON /mspt (paper-family only)
     tps_history: state.tpsHistory.slice(), // copy so the caller can't mutate
     uptime: Math.floor((Date.now() - state.startedAt) / 1000),
-    players: slp?.players?.online ?? 0,
-    players_max: slp?.players?.max ?? (server?.max_players || 0),
-    player_sample: (slp?.players?.sample || []).map((p) => p.name).slice(0, 12),
+    // The status ping is answered by the user's own JAR/plugins, so treat it as
+    // untrusted: these fields reach the public landing page and other UIs.
+    players: slpCount(slp?.players?.online) ?? 0,
+    players_max: slpCount(slp?.players?.max) ?? (server?.max_players || 0),
+    player_sample: (Array.isArray(slp?.players?.sample) ? slp.players.sample : [])
+      .map((p) => slpText(p?.name, 32))
+      .filter(Boolean)
+      .slice(0, 12),
     motd:
-      typeof slp?.description === "string"
-        ? slp.description
-        : slp?.description?.text || slp?.description?.translate || null,
-    mc_version: slp?.version?.name || null,
+      slpText(
+        typeof slp?.description === "string"
+          ? slp.description
+          : slp?.description?.text || slp?.description?.translate,
+        256,
+      ) || null,
+    mc_version: slpText(slp?.version?.name, 64) || null,
     online: state.ready,
     ready: state.ready,
     host_port: state.hostPort,

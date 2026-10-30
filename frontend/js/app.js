@@ -1081,14 +1081,18 @@ window.useServerPicker = async (selectEl) => {
   let current = servers.find((s) => s.id === savedId) || servers[0];
 
   if (selectEl) {
-    selectEl.innerHTML = servers
-      .map((s) => {
+    // Built with textContent: server names are user input and must never parse as HTML.
+    selectEl.replaceChildren(
+      ...servers.map((s) => {
         const dot =
           s.status === "online" || s.status === "starting" ? "🟢" : "🔴";
-        const label = `${dot} ${s.name}${s.version ? " — " + (s.type ? s.type[0].toUpperCase() + s.type.slice(1) : "") + " " + s.version : ""}`;
-        return `<option value="${s.id}"${s.id === current.id ? " selected" : ""}>${label}</option>`;
-      })
-      .join("");
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.selected = s.id === current.id;
+        opt.textContent = `${dot} ${s.name}${s.version ? " — " + (s.type ? s.type[0].toUpperCase() + s.type.slice(1) : "") + " " + s.version : ""}`;
+        return opt;
+      }),
+    );
   }
 
   const listeners = [];
