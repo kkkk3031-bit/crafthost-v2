@@ -44,14 +44,14 @@
   <aside class="side">
     <a href="/" class="brand"><span class="brand-mark">C</span><span>CraftHost</span></a>
     <nav class="side-nav">
-      <a href="/dashboard.html">My Servers</a>
-      <a href="/marketplace.html">Plugins & Mods</a>
-      <a href="/files.html">File Manager</a>
-      <a href="/jars.html">JAR Library</a>
-      <a href="/console.html">Live Console</a>
-      <div class="side-section">Account</div>
-      <a href="/settings.html" class="active">Settings</a>
-      <a href="#" id="logoutLink">Sign out</a>
+      <a href="/dashboard.html" data-i18n="nav_servers">My Servers</a>
+      <a href="/marketplace.html" data-i18n="nav_plugins">Plugins & Mods</a>
+      <a href="/files.html" data-i18n="nav_files">File Manager</a>
+      <a href="/jars.html" data-i18n="nav_jars">JAR Library</a>
+      <a href="/console.html" data-i18n="nav_console">Live Console</a>
+      <div class="side-section" data-i18n="nav_account">Account</div>
+      <a href="/settings.html" class="active" data-i18n="nav_settings">Settings</a>
+      <a href="#" id="logoutLink" data-i18n="sign_out">Sign out</a>
     </nav>
   </aside>
 
@@ -64,7 +64,7 @@
     </div>
 
     <main class="main" style="max-width:880px;">
-      <p class="sub" style="margin:0 0 18px;">Manage your account and security.</p>
+      <p class="sub" style="margin:0 0 18px;" data-i18n="settings_sub">Manage your account and security.</p>
 
       <div class="card mb-4">
         <h3 style="margin-bottom:18px;" data-i18n="settings_profile">Profile</h3>
@@ -77,25 +77,25 @@
       </div>
 
       <div class="card mb-4">
-        <h3 style="margin-bottom:8px;">Security</h3>
+        <h3 style="margin-bottom:8px;" data-i18n="settings_security">Security</h3>
         <div class="setting-row">
-          <div><div class="label-l">Password</div><div class="desc" id="lastLoginDesc">Change your password regularly.</div></div>
-          <button class="btn btn-secondary btn-sm" onclick="openChangePw()">Change</button>
+          <div><div class="label-l" data-i18n="auth_password">Password</div><div class="desc" id="lastLoginDesc" data-i18n="settings_pw_desc">Change your password regularly.</div></div>
+          <button class="btn btn-secondary btn-sm" onclick="openChangePw()" data-i18n="btn_change">Change</button>
         </div>
         <div class="setting-row">
-          <div><div class="label-l">Account role</div><div class="desc" id="roleDesc">Standard user account</div></div>
+          <div><div class="label-l" data-i18n="settings_role">Account role</div><div class="desc" id="roleDesc">Standard user account</div></div>
           <span class="badge" id="roleBadge">user</span>
         </div>
         <div class="setting-row">
-          <div><div class="label-l">Account created</div><div class="desc" id="createdDesc">—</div></div>
+          <div><div class="label-l" data-i18n="settings_created">Account created</div><div class="desc" id="createdDesc">—</div></div>
         </div>
       </div>
 
       <div class="card mb-4 danger-zone">
-        <h3 style="margin-bottom:8px;"><span class="msr" style="color:var(--danger,#EF4444);">warning</span> Danger zone</h3>
+        <h3 style="margin-bottom:8px;"><span class="msr" style="color:var(--danger,#EF4444);">warning</span> <span data-i18n="settings_danger">Danger zone</span></h3>
         <div class="setting-row">
-          <div><div class="label-l">Delete account</div><div class="desc">Permanently deletes your account, all servers, and all backups. This cannot be undone.</div></div>
-          <button class="btn btn-secondary btn-sm" style="color:var(--red);" onclick="openDelete()">Delete</button>
+          <div><div class="label-l" data-i18n="settings_delete_account">Delete account</div><div class="desc" data-i18n="settings_delete_desc">Permanently deletes your account, all servers, and all backups. This cannot be undone.</div></div>
+          <button class="btn btn-secondary btn-sm" style="color:var(--red);" onclick="openDelete()" data-i18n="delete">Delete</button>
         </div>
       </div>
     </main>
@@ -105,13 +105,13 @@
 <!-- Change password modal -->
 <div class="modal-bg" id="pwModal">
   <div class="modal-card">
-    <h3>Change password</h3>
-    <div class="field"><label class="label">Current password</label><input id="pwCurrent" class="input" type="password" autocomplete="current-password" /></div>
-    <div class="field"><label class="label">New password</label><input id="pwNew" class="input" type="password" autocomplete="new-password" /></div>
-    <div class="field"><label class="label">Confirm new password</label><input id="pwConfirm" class="input" type="password" autocomplete="new-password" /></div>
+    <h3 data-i18n="settings_change_password">Change password</h3>
+    <div class="field"><label class="label" data-i18n="label_current_password">Current password</label><input id="pwCurrent" class="input" type="password" autocomplete="current-password" /></div>
+    <div class="field"><label class="label" data-i18n="label_new_password">New password</label><input id="pwNew" class="input" type="password" autocomplete="new-password" /></div>
+    <div class="field"><label class="label" data-i18n="label_confirm_new_password">Confirm new password</label><input id="pwConfirm" class="input" type="password" autocomplete="new-password" /></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closePwModal()">Cancel</button>
-      <button id="btnChangePw" class="btn btn-primary">Update password</button>
+      <button class="btn btn-ghost" onclick="closePwModal()" data-i18n="cancel">Cancel</button>
+      <button id="btnChangePw" class="btn btn-primary" data-i18n="btn_update_password">Update password</button>
     </div>
   </div>
 </div>
@@ -154,10 +154,8 @@ async function loadMe() {
   document.getElementById('avatar').textContent = (currentUser.username || 'U')[0].toUpperCase();
   document.getElementById('roleBadge').textContent = currentUser.role;
   document.getElementById('roleBadge').className = 'badge ' + (currentUser.role === 'admin' ? 'badge-gold' : 'badge-emerald');
-  document.getElementById('roleDesc').textContent = currentUser.role === 'admin'
-    ? 'Administrator — full platform access'
-    : 'Standard user account';
-  document.getElementById('createdDesc').textContent = currentUser.created_at ? fmtDate(currentUser.created_at) : 'Available after next sign-in';
+  document.getElementById('roleDesc').textContent = t(currentUser.role === 'admin' ? 'settings_role_admin' : 'settings_role_user');
+  document.getElementById('createdDesc').textContent = currentUser.created_at ? fmtDate(currentUser.created_at) : t('settings_created_unknown');
 }
 
 document.getElementById('btnSaveProfile').onclick = async () => {

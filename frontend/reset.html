@@ -26,20 +26,20 @@
   <div class="auth-main">
     <div class="auth-card">
       <a href="/" class="auth-brand"><span class="brand-mark">C</span><span>CraftHost</span></a>
-      <h2>Set new password</h2>
+      <h2 data-i18n="auth_new_pw_title">Set new password</h2>
       <p class="sub" id="hint">Choose a strong password (8+ characters).</p>
       <form id="resetForm">
         <div class="field">
-          <label class="label">New password</label>
+          <label class="label" data-i18n="label_new_password">New password</label>
           <input type="password" name="password" class="input" minlength="8" required autocomplete="new-password" />
         </div>
         <div class="field">
-          <label class="label">Confirm password</label>
+          <label class="label" data-i18n="label_confirm_password">Confirm password</label>
           <input type="password" name="confirm" class="input" minlength="8" required autocomplete="new-password" />
         </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Set new password</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" data-i18n="auth_new_pw_title">Set new password</button>
       </form>
-      <p class="auth-foot">Remembered it?<a href="/login.html">Sign in</a></p>
+      <p class="auth-foot"><span data-i18n="auth_remembered">Remembered it?</span><a href="/login.html" data-i18n="sign_in">Sign in</a></p>
     </div>
   </div>
 </div>

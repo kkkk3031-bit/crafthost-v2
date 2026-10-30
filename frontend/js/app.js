@@ -239,6 +239,31 @@ window.I18N = {
     jars_official: "Official Types",
     jars_custom: "My Custom JARs",
     wiz_deploy: "Deploy Server",
+    // Auth recovery + settings pages
+    auth_reset_sub: "Enter your account email and we'll send a reset link.",
+    auth_send_reset: "Send reset link →",
+    auth_back_to: "Back to",
+    auth_reset_requested: "Reset requested",
+    auth_reset_requested_sub: "If an account exists for that email, a reset link is ready. Ping us on Discord and we'll send it to you after a quick check.",
+    auth_open_discord: "Open Discord →",
+    auth_new_pw_title: "Set new password",
+    label_new_password: "New password",
+    label_confirm_password: "Confirm password",
+    auth_remembered: "Remembered it?",
+    settings_sub: "Manage your account and security.",
+    settings_security: "Security",
+    btn_change: "Change",
+    settings_role: "Account role",
+    settings_created: "Account created",
+    settings_danger: "Danger zone",
+    settings_delete_desc: "Permanently deletes your account, all servers, and all backups. This cannot be undone.",
+    label_current_password: "Current password",
+    label_confirm_new_password: "Confirm new password",
+    btn_update_password: "Update password",
+    settings_role_admin: "Administrator — full platform access",
+    settings_role_user: "Standard user account",
+    settings_created_unknown: "Available after next sign-in",
+    settings_pw_desc: "Change your password regularly.",
   },
   ar: {
     nav_servers: "السيرفرات",
@@ -458,6 +483,31 @@ window.I18N = {
     jars_official: "الأنواع الرسمية",
     jars_custom: "ملفات JAR الخاصة بي",
     wiz_deploy: "نشر السيرفر",
+    // Auth recovery + settings pages
+    auth_reset_sub: "أدخل بريد حسابك وسنجهّز لك رابط إعادة التعيين.",
+    auth_send_reset: "إرسال رابط إعادة التعيين ←",
+    auth_back_to: "العودة إلى",
+    auth_reset_requested: "تم طلب إعادة التعيين",
+    auth_reset_requested_sub: "إذا كان هناك حساب بهذا البريد فرابط إعادة التعيين جاهز. راسلنا على ديسكورد وسنرسله لك بعد تحقق سريع.",
+    auth_open_discord: "افتح ديسكورد ←",
+    auth_new_pw_title: "تعيين كلمة مرور جديدة",
+    label_new_password: "كلمة المرور الجديدة",
+    label_confirm_password: "تأكيد كلمة المرور",
+    auth_remembered: "تذكّرتها؟",
+    settings_sub: "إدارة حسابك وأمانه.",
+    settings_security: "الأمان",
+    btn_change: "تغيير",
+    settings_role: "دور الحساب",
+    settings_created: "تاريخ إنشاء الحساب",
+    settings_danger: "منطقة الخطر",
+    settings_delete_desc: "يحذف حسابك وجميع خوادمك ونسخك الاحتياطية نهائياً. لا يمكن التراجع عن ذلك.",
+    label_current_password: "كلمة المرور الحالية",
+    label_confirm_new_password: "تأكيد كلمة المرور الجديدة",
+    btn_update_password: "تحديث كلمة المرور",
+    settings_role_admin: "مسؤول — صلاحيات كاملة على المنصة",
+    settings_role_user: "حساب مستخدم عادي",
+    settings_created_unknown: "يظهر بعد تسجيل الدخول القادم",
+    settings_pw_desc: "غيّر كلمة المرور بانتظام.",
   },
 };
 window.t = (key) => {
@@ -974,7 +1024,7 @@ window.copyText = (text) => {
       .map((i) => {
         const active =
           here === i.href.replace(/\.html$/, "") ? ' class="active"' : "";
-        return `<a href="${i.href}"${active}>${i.icon}<div data-i18n="${i.label}">${window.I18N?.en?.[i.label] || i.label}</div></a>`;
+        return `<a href="${i.href}"${active}>${i.icon}<div data-i18n="${i.label}">${window.t(i.label)}</div></a>`;
       })
       .join("")}</div>`;
     document.body.appendChild(nav);

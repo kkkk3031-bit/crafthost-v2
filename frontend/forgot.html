@@ -26,16 +26,16 @@
   <div class="auth-main">
     <div class="auth-card">
       <a href="/" class="auth-brand"><span class="brand-mark">C</span><span>CraftHost</span></a>
-      <h2>Reset password</h2>
-      <p class="sub">Enter your account email and we'll send a reset link.</p>
+      <h2 data-i18n="auth_reset_title">Reset password</h2>
+      <p class="sub" data-i18n="auth_reset_sub">Enter your account email and we'll send a reset link.</p>
       <form id="forgotForm">
         <div class="field">
-          <label class="label">Email</label>
+          <label class="label" data-i18n="auth_email">Email</label>
           <input type="email" name="email" class="input" placeholder="you@example.com" required />
         </div>
-        <button type="submit" class="btn btn-primary btn-block btn-lg">Send reset link →</button>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" data-i18n="auth_send_reset">Send reset link →</button>
       </form>
-      <p class="auth-foot">Back to<a href="/login.html">Sign in</a></p>
+      <p class="auth-foot"><span data-i18n="auth_back_to">Back to</span><a href="/login.html" data-i18n="sign_in">Sign in</a></p>
     </div>
   </div>
 </div>
@@ -54,10 +54,10 @@ document.getElementById('forgotForm').addEventListener('submit', async (e) => {
     // knowing someone's email is not enough to take over their account.
     const card = document.querySelector('.auth-card');
     card.innerHTML = `
-      <h2>Reset requested</h2>
-      <p class="sub">If an account exists for that email, a reset link is ready. Ping us on Discord and we'll send it to you after a quick check. <span dir="rtl">اطلب رابط الاستعادة عبر ديسكورد</span></p>
-      <a href="https://discord.gg/zbHbSsCUua" target="_blank" rel="noopener" class="btn btn-primary btn-block btn-lg">Open Discord →</a>
-      <p class="auth-foot">Back to<a href="/login.html">Sign in</a></p>
+      <h2 data-i18n="auth_reset_requested">Reset requested</h2>
+      <p class="sub" data-i18n="auth_reset_requested_sub">If an account exists for that email, a reset link is ready. Ping us on Discord and we'll send it to you after a quick check.</p>
+      <a href="https://discord.gg/zbHbSsCUua" target="_blank" rel="noopener" class="btn btn-primary btn-block btn-lg" data-i18n="auth_open_discord">Open Discord →</a>
+      <p class="auth-foot"><span data-i18n="auth_back_to">Back to</span><a href="/login.html" data-i18n="sign_in">Sign in</a></p>
     `;
   } catch (err) {
     toast(err.message || 'Could not generate reset link', 'error');
