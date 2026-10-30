@@ -62,8 +62,7 @@
   try {
     const r = await fetch('/api/auth/me', { credentials: 'include' });
     if (!r.ok) return;
-    const next = new URLSearchParams(location.search).get('next') || '/dashboard.html';
-    const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard.html';
+    const safeNext = window.safeNext();
     location.replace(safeNext);
   } catch {}
 })();
@@ -106,8 +105,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         if (r.user) localStorage.setItem('crafthost.user', JSON.stringify(r.user));
       } catch {}
       toast('Welcome back!');
-      const next = new URLSearchParams(location.search).get('next') || '/dashboard.html';
-      const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard.html';
+      const safeNext = window.safeNext();
       setTimeout(() => location.href = safeNext, 600);
     }
   } catch (err) { toast(err.message || 'Sign-in failed', 'error'); }

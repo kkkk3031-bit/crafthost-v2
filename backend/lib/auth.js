@@ -10,8 +10,16 @@ if (process.env.NODE_ENV === 'production') {
   if (SECRET.length < 32) console.warn('[auth] JWT_SECRET is shorter than 32 characters; use a longer random value');
 }
 
-function hashPassword(p) { return bcrypt.hashSync(p, 10); }
-function verifyPassword(p, h) { return typeof p === 'string' && bcrypt.compareSync(p, h); }
+// Async bcrypt: the sync versions block the event loop (~100ms each) for every request.
+function hashPassword(p) { return bcrypt.hash(p, 10); }
+// Compared when the account doesn't exist, so a miss costs the same time as a hit
+// and response timing can't reveal which emails/usernames are registered.
+const DUMMY_HASH = bcrypt.hashSync('timing-equaliser', 10);
+async function verifyPassword(p, h) {
+  if (typeof p !== 'string') return false;
+  const ok = await bcrypt.compare(p, h || DUMMY_HASH);
+  return ok && !!h;
+}
 
 // `tv` (token version) is bumped on password change/reset, which revokes every older token.
 function signToken(user) {

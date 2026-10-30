@@ -82,8 +82,7 @@ document.getElementById('regForm').addEventListener('submit', async (e) => {
         if (r.user) localStorage.setItem('crafthost.user', JSON.stringify(r.user));
       } catch {}
       toast('Account created. Redirecting…');
-      const next = new URLSearchParams(location.search).get('next') || '/dashboard.html';
-      const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard.html';
+      const safeNext = window.safeNext();
       setTimeout(() => location.href = safeNext, 700);
     }
   } catch (err) { toast(err.message || 'Sign-up failed', 'error'); }

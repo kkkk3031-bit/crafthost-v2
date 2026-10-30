@@ -11,6 +11,8 @@ const isStr = (...vals) => vals.every((v) => typeof v === 'string');
 function usernameError(username) {
   if (username.length < 3) return 'Username too short (min 3)';
   if (username.length > 32) return 'Username too long (max 32)';
+  // Login accepts "email or username", so a username shaped like someone's email could shadow them.
+  if (username.includes('@')) return 'Username cannot contain @';
   return null;
 }
 function emailError(email) {
@@ -39,8 +41,15 @@ router.post('/register', async (req, res) => {
   const exists = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(email, username);
   if (exists) return res.status(409).json({ error: 'Email or username already exists' });
 
-  const hash = hashPassword(password);
-  const info = db.prepare('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)').run(username, email, hash);
+  const hash = await hashPassword(password);
+  let info;
+  try {
+    info = db.prepare('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)').run(username, email, hash);
+  } catch (err) {
+    // Two concurrent sign-ups can both pass the check above; the UNIQUE index decides.
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.status(409).json({ error: 'Email or username already exists' });
+    throw err;
+  }
   const user = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(info.lastInsertRowid);
 
   const token = signToken(user);
@@ -78,11 +87,12 @@ router.post('/register', async (req, res) => {
   res.json({ token, user, starter });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password, remember } = req.body || {};
   if (!isStr(email, password)) return res.status(400).json({ error: 'Email and password required' });
-  const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(email, email);
-  if (!user || !verifyPassword(password, user.password_hash)) {
+  // An exact email match wins over a username match.
+  const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ? ORDER BY (email = ?) DESC LIMIT 1').get(email, email, email);
+  if (!(await verifyPassword(password, user?.password_hash))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   db.prepare('UPDATE users SET last_login = strftime(\'%s\',\'now\') WHERE id = ?').run(user.id);
@@ -106,14 +116,14 @@ router.get('/me', authMiddleware, (req, res) => {
 });
 
 // PATCH /api/auth/me { email?, username? } — update profile fields. Requires current password.
-router.patch('/me', authMiddleware, (req, res) => {
+router.patch('/me', authMiddleware, async (req, res) => {
   const { email, username, current_password } = req.body || {};
   if (email != null && !isStr(email)) return res.status(400).json({ error: 'Invalid email address' });
   if (username != null && !isStr(username)) return res.status(400).json({ error: 'Invalid username' });
   if (!current_password) return res.status(400).json({ error: 'Current password required' });
 
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  if (!u || !verifyPassword(current_password, u.password_hash)) {
+  if (!u || !(await verifyPassword(current_password, u.password_hash))) {
     return res.status(401).json({ error: 'Invalid password' });
   }
 
@@ -146,7 +156,7 @@ router.patch('/me', authMiddleware, (req, res) => {
 });
 
 // POST /api/auth/change-password { current_password, new_password }
-router.post('/change-password', authMiddleware, (req, res) => {
+router.post('/change-password', authMiddleware, async (req, res) => {
   const { current_password, new_password } = req.body || {};
   if (!current_password || !new_password || !isStr(current_password, new_password))
     return res.status(400).json({ error: 'Both passwords required' });
@@ -154,10 +164,10 @@ router.post('/change-password', authMiddleware, (req, res) => {
   if (invalid) return res.status(400).json({ error: invalid });
 
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  if (!u || !verifyPassword(current_password, u.password_hash)) {
+  if (!u || !(await verifyPassword(current_password, u.password_hash))) {
     return res.status(401).json({ error: 'Invalid current password' });
   }
-  const hash = hashPassword(new_password);
+  const hash = await hashPassword(new_password);
   // Bumping token_version signs out every other session (e.g. a stolen cookie).
   db.prepare('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?').run(hash, req.user.id);
   // Invalidate any outstanding reset tokens for this user
@@ -175,7 +185,7 @@ router.delete('/me', authMiddleware, async (req, res) => {
   if (!password) return res.status(400).json({ error: 'Password required' });
 
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  if (!u || !verifyPassword(password, u.password_hash)) {
+  if (!u || !(await verifyPassword(password, u.password_hash))) {
     return res.status(401).json({ error: 'Invalid password' });
   }
   if (u.role === 'admin') {
@@ -228,7 +238,7 @@ router.post('/forgot', (req, res) => {
 });
 
 // POST /api/auth/reset { token, password } — set new password using the token.
-router.post('/reset', (req, res) => {
+router.post('/reset', async (req, res) => {
   const { token, password } = req.body || {};
   if (!token || !password || !isStr(token, password)) return res.status(400).json({ error: 'Token + password required' });
   const invalid = passwordError(password);
@@ -239,10 +249,14 @@ router.post('/reset', (req, res) => {
   if (row.used_at) return res.status(400).json({ error: 'Token already used' });
   if (row.expires_at < Math.floor(Date.now() / 1000)) return res.status(400).json({ error: 'Token expired' });
 
-  const hash = hashPassword(password);
+  // Claim the token atomically before the (async) hash, so two concurrent
+  // requests can't both spend the same link.
+  const claimed = db.prepare('UPDATE password_resets SET used_at = strftime(\'%s\',\'now\') WHERE token = ? AND used_at IS NULL').run(token);
+  if (claimed.changes !== 1) return res.status(400).json({ error: 'Token already used' });
+
+  const hash = await hashPassword(password);
   // A reset is often recovery from a takeover: sign out every existing session.
   db.prepare('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?').run(hash, row.user_id);
-  db.prepare('UPDATE password_resets SET used_at = strftime(\'%s\',\'now\') WHERE token = ?').run(token);
   // Invalidate any other outstanding tokens for this user
   db.prepare('DELETE FROM password_resets WHERE user_id = ? AND token != ?').run(row.user_id, token);
 

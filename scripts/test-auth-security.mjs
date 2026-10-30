@@ -82,6 +82,43 @@ let newToken = null;
   check(cur.status === 200, `new token → 200 (got ${cur.status})`);
 }
 
+console.log(`${Y('▶')} Account enumeration + lookup collisions`);
+{
+  const r = await api('/api/auth/register', {
+    method: 'POST',
+    body: { username: `x${suffix}@test.io`, email: `y+${suffix}@test.io`, password },
+  });
+  check(r.status === 400, `username containing @ → 400 (got ${r.status})`);
+
+  // An unknown account must cost about as much as a wrong password (bcrypt runs either way).
+  const time = async (email) => {
+    const t = performance.now();
+    const res = await api('/api/auth/login', { method: 'POST', body: { email, password: 'wrong-password-123' } });
+    return { ms: performance.now() - t, status: res.status };
+  };
+  await time(`nobody-${suffix}@test.io`); // warm-up
+  const known = [], unknown = [];
+  for (let i = 0; i < 3; i++) {
+    known.push((await time(`as+${suffix}@test.io`)).ms);
+    unknown.push((await time(`nobody-${suffix}@test.io`)).ms);
+  }
+  const med = a => a.sort((x, y) => x - y)[1];
+  check(med(unknown) > med(known) * 0.5,
+    `unknown-account login takes comparable time (${med(unknown).toFixed(0)}ms vs ${med(known).toFixed(0)}ms)`);
+}
+
+console.log(`${Y('▶')} Concurrent sign-ups with the same email`);
+{
+  const s2 = crypto.randomBytes(4).toString('hex');
+  const body = { username: `race_${s2}`, email: `race+${s2}@test.io`, password };
+  const results = await Promise.all([1, 2, 3].map(() => api('/api/auth/register', { method: 'POST', body })));
+  const codes = results.map(r => r.status).sort();
+  check(codes.filter(c => c === 200).length === 1 && codes.every(c => c === 200 || c === 409),
+    `exactly one 200, rest 409 (got ${codes.join(',')})`);
+  const winner = results.find(r => r.status === 200);
+  if (winner) await api('/api/auth/me', { method: 'DELETE', token: winner.body.token, body: { password, confirm: 'DELETE' } });
+}
+
 console.log(`${Y('▶')} Cleanup`);
 {
   const r = await api('/api/auth/me', { method: 'DELETE', token: newToken, body: { password: newPassword, confirm: 'DELETE' } });

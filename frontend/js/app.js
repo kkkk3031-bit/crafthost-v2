@@ -869,6 +869,19 @@ window.api = async (path, opts = {}) => {
   return data;
 };
 
+// Where to go after sign-in: the ?next= path, but only if it stays on this site.
+// Parsing (not prefix checks) catches tricks like "/\evil.com" that browsers treat as "//evil.com".
+window.safeNext = (fallback = "/dashboard.html") => {
+  const next = new URLSearchParams(location.search).get("next");
+  if (!next) return fallback;
+  try {
+    const u = new URL(next, location.origin);
+    return u.origin === location.origin ? u.pathname + u.search + u.hash : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 window.toast = (msg, type = "success") => {
   const host =
     document.getElementById("toasts") ||
