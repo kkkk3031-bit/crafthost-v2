@@ -297,6 +297,30 @@ window.I18N = {
     status_local: "Configured locally",
     status_unreachable: "Cannot reach API",
     status_error: "Error:",
+    // Engines, JAR library, console, files
+    engine_desc_paper: "High-performance plugin server. Recommended for most setups.",
+    engine_desc_vanilla: "Pure Mojang Minecraft. No mods, no plugins.",
+    engine_desc_purpur: "Configurable Paper fork with extra features.",
+    engine_desc_fabric: "Lightweight modding API. Great for client-side mods.",
+    engine_desc_neoforge: "Modern Forge fork. Faster release cycle.",
+    engine_desc_spigot: "Classic plugin-enabled server.",
+    jars_upload: "⬆ Upload Custom JAR",
+    jars_upload_short: "⬆ Upload",
+    jars_live_api: "Live from official API",
+    jars_deploy_with: "Deploy with {name}",
+    jars_latest: "Latest: {v}",
+    jars_no_versions: "No versions available",
+    console_no_players: "No players online",
+    console_auto: "⤓ Auto",
+    files_root: "/ (root)",
+    ago_s: "{n}s ago",
+    ago_m: "{n}m ago",
+    ago_h: "{n}h ago",
+    console_tps_target: "TPS (target 20.0)",
+    console_mc_version: "MC version",
+    console_host_port: "Host port",
+    console_exit_code: "Exit code",
+    jars_source_note: "JARs come from the official source of each engine and are cached on the server, so new servers start fast.",
   },
   ar: {
     nav_servers: "السيرفرات",
@@ -574,6 +598,30 @@ window.I18N = {
     status_local: "مُعدّ محلياً",
     status_unreachable: "تعذّر الوصول إلى الخادم",
     status_error: "خطأ:",
+    // Engines, JAR library, console, files
+    engine_desc_paper: "سيرفر إضافات عالي الأداء. الخيار الأنسب لمعظم الحالات.",
+    engine_desc_vanilla: "ماين كرافت الأصلية من Mojang. بدون مودات أو إضافات.",
+    engine_desc_purpur: "نسخة من Paper قابلة للتخصيص مع ميزات إضافية.",
+    engine_desc_fabric: "واجهة مودات خفيفة. ممتازة لمودات اللاعبين.",
+    engine_desc_neoforge: "نسخة حديثة من Forge بتحديثات أسرع.",
+    engine_desc_spigot: "سيرفر الإضافات الكلاسيكي.",
+    jars_upload: "⬆ رفع JAR مخصص",
+    jars_upload_short: "⬆ رفع",
+    jars_live_api: "مباشرة من الواجهة الرسمية",
+    jars_deploy_with: "انشر باستخدام {name}",
+    jars_latest: "الأحدث: {v}",
+    jars_no_versions: "لا توجد إصدارات متاحة",
+    console_no_players: "لا يوجد لاعبون متصلون",
+    console_auto: "⤓ تلقائي",
+    files_root: "/ (الجذر)",
+    ago_s: "قبل {n} ث",
+    ago_m: "قبل {n} د",
+    ago_h: "قبل {n} س",
+    console_tps_target: "TPS (الهدف 20.0)",
+    console_mc_version: "إصدار ماين كرافت",
+    console_host_port: "منفذ المضيف",
+    console_exit_code: "رمز الخروج",
+    jars_source_note: "تُجلب ملفات JAR من المصدر الرسمي لكل محرك وتُخزَّن مؤقتاً على الخادم، فتبدأ السيرفرات الجديدة بسرعة.",
   },
 };
 window.t = (key) => {
@@ -582,6 +630,8 @@ window.t = (key) => {
     (window.I18N[lang] && window.I18N[lang][key]) || window.I18N.en[key] || key
   );
 };
+// t() with a fallback for keys that may not exist (t() returns the key itself).
+window.tOr = (key, fallback) => (window.I18N.en[key] ? window.t(key) : fallback);
 window.applyLang = (lang) => {
   lang = lang === "ar" ? "ar" : "en";
   localStorage.setItem("crafthost.lang", lang);

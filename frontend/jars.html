@@ -104,8 +104,8 @@
       <div class="topbar-actions">
         <input type="file" id="jarUploadInput" accept=".jar" style="display:none;" />
         <button class="btn btn-primary btn-sm" id="uploadBtn">
-          <span class="upload-label-full">⬆ Upload Custom JAR</span>
-          <span class="upload-label-short">⬆ Upload</span>
+          <span class="upload-label-full" data-i18n="jars_upload">⬆ Upload Custom JAR</span>
+          <span class="upload-label-short" data-i18n="jars_upload_short">⬆ Upload</span>
         </button>
         <div class="avatar" id="avatar">U</div>
       </div>
@@ -121,7 +121,7 @@
 
       <div id="officialTab">
         <div class="jar-grid" id="officialGrid"></div>
-        <p class="text-muted mt-4" style="font-size:13px;">JARs are downloaded fresh from the official source each time you create a server — always up to date, no cache.</p>
+        <p class="text-muted mt-4" style="font-size:13px;" data-i18n="jars_source_note">JARs come from the official source of each engine and are cached on the server, so new servers start fast.</p>
       </div>
 
       <div id="customTab" style="display:none;">
@@ -176,9 +176,9 @@ async function loadOfficial() {
         </div>
         <div><h4>${t.name}</h4><div class="meta" id="ver_${t.id}">loading…</div></div>
       </div>
-      <p class="desc">${t.desc}</p>
-      <div class="stats"><span><span class="msr">sync</span> Live from official API</span></div>
-      <a href="/dashboard.html?type=${t.id}" class="btn btn-primary btn-block btn-sm">Deploy with ${t.name}</a>
+      <p class="desc">${window.tOr("engine_desc_" + t.id, t.desc)}</p>
+      <div class="stats"><span><span class="msr">sync</span> ${window.t("jars_live_api")}</span></div>
+      <a href="/dashboard.html?type=${t.id}" class="btn btn-primary btn-block btn-sm">${window.t("jars_deploy_with").replace("{name}", t.name)}</a>
     </div>
   `).join('');
   // Fetch latest version per type in parallel
@@ -188,7 +188,7 @@ async function loadOfficial() {
       const d = await r.json();
       const v = d.versions?.[0];
       const el = document.getElementById('ver_' + t.id);
-      if (el) el.textContent = v ? `Latest: ${v.id}` : 'No versions available';
+      if (el) el.textContent = v ? window.t('jars_latest').replace('{v}', v.id) : window.t('jars_no_versions');
     } catch {
       const el = document.getElementById('ver_' + t.id);
       if (el) el.textContent = '—';

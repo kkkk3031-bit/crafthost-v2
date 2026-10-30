@@ -248,7 +248,7 @@ async function refresh() {
     } else {
       ev.innerHTML = `<div class="event-row"><span class="a">${esc(t('status_no_activity'))}</span></div>`;
     }
-    document.getElementById('lastCheck').textContent = new Date().toLocaleTimeString();
+    document.getElementById('lastCheck').textContent = new Date().toLocaleTimeString(document.documentElement.lang || undefined);
   } catch (err) {
     const pill = document.getElementById('statusPill');
     pill.className = 'status-pill down';

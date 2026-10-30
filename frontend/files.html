@@ -359,9 +359,9 @@ function fileIcon(type) {
 function fmtRel(ms) {
   if (!ms) return '—';
   const diff = (Date.now() - ms) / 1000;
-  if (diff < 60) return Math.floor(diff) + 's ago';
-  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  if (diff < 60) return t('ago_s').replace('{n}', Math.floor(diff));
+  if (diff < 3600) return t('ago_m').replace('{n}', Math.floor(diff/60));
+  if (diff < 86400) return t('ago_h').replace('{n}', Math.floor(diff/3600));
   return new Date(ms).toLocaleDateString();
 }
 
@@ -524,7 +524,7 @@ function renderTree(items) {
   const el = document.getElementById('tree');
   el.innerHTML = `
     <div class="fm-tree-item ${currentPath === '/' ? 'active' : ''}" onclick="navigate('/')">
-      ${fileIcon('folder')} <span>/ (root)</span>
+      ${fileIcon('folder')} <span>${t('files_root')}</span>
     </div>
     ${folders.map(f => {
       const p = (currentPath === '/' ? '' : currentPath) + '/' + f.name;

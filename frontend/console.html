@@ -338,7 +338,7 @@
           <div class="term-head">
             <div><strong data-i18n="nav_console">Console</strong> <span class="text-muted" id="termHost" style="margin-left:6px;font-family:var(--font-mono);font-size:12px;"></span></div>
             <div style="display:flex;gap:6px;">
-              <button class="btn btn-ghost btn-sm" id="autoscrollBtn" title="Toggle auto-scroll">⤓ Auto</button>
+              <button class="btn btn-ghost btn-sm" id="autoscrollBtn" title="Toggle auto-scroll" data-i18n="console_auto">⤓ Auto</button>
               <button class="btn btn-ghost btn-sm" onclick="document.getElementById('term').innerHTML=''">Clear</button>
               <button class="btn btn-ghost btn-sm" id="dlLogBtn" title="Download log">↓</button>
             </div>
@@ -365,7 +365,7 @@
         <div class="metrics-panel">
           <div class="tps-gauge">
             <div class="v" id="tps">—</div>
-            <div class="l">TPS (target 20.0)</div>
+            <div class="l" data-i18n="console_tps_target">TPS (target 20.0)</div>
           </div>
 
           <div class="metric">
@@ -388,9 +388,9 @@
 
           <div style="font-size:12px;color:var(--slate-400);">
             <div class="flex justify-between" style="padding:4px 0;"><span>Uptime</span><strong id="upTxt" style="color:white;">—</strong></div>
-            <div class="flex justify-between" style="padding:4px 0;"><span>MC version</span><strong id="mcVerTxt" style="color:white;">—</strong></div>
-            <div class="flex justify-between" style="padding:4px 0;"><span>Host port</span><strong id="hostPortTxt" style="color:white;font-family:var(--font-mono);">—</strong></div>
-            <div class="flex justify-between" style="padding:4px 0;"><span>Exit code</span><strong id="exitCodeTxt" style="color:white;">—</strong></div>
+            <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="console_mc_version">MC version</span><strong id="mcVerTxt" style="color:white;">—</strong></div>
+            <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="console_host_port">Host port</span><strong id="hostPortTxt" style="color:white;font-family:var(--font-mono);">—</strong></div>
+            <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="console_exit_code">Exit code</span><strong id="exitCodeTxt" style="color:white;">—</strong></div>
           </div>
         </div>
 
@@ -465,7 +465,7 @@ function colorize(line) {
 function renderPlayers() {
   const max = picker?.current?.max_players || 0;
   if (!players.length) {
-    document.getElementById('playerList').innerHTML = `<div style="padding:24px;text-align:center;color:var(--slate-400);font-size:12px;">No players online</div>`;
+    document.getElementById('playerList').innerHTML = `<div style="padding:24px;text-align:center;color:var(--slate-400);font-size:12px;">${t("console_no_players")}</div>`;
   } else {
     document.getElementById('playerList').innerHTML = players.map(p => `
       <div class="player" data-name="${escapeHtml(p.name)}" title="Click for actions">

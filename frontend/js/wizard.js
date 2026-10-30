@@ -268,7 +268,7 @@ function renderStep1() {
         <button class="type-pick ${wizState.type === t.id ? "selected" : ""}" onclick="pickType('${t.id}')">
           <div class="tp-logo tp-logo-svg" style="background:${t.c}1f;border-color:${t.c}55;">${t.img ? `<img src="${t.img}" alt="${t.name}" loading="lazy" />` : icon(t.id) || `<span style="color:${t.c};font-weight:800;font-size:22px;">${t.name[0]}</span>`}</div>
           <h4>${t.name}</h4>
-          <p>${t.desc}</p>
+          <p>${window.tOr("engine_desc_" + t.id, t.desc)}</p>
         </button>
       `,
       ).join("")}
