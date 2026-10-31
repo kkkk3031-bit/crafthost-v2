@@ -619,6 +619,22 @@ async function ensureJar(server) {
   if (fs.existsSync(jarPath) && fs.statSync(jarPath).size > 100000)
     return jarPath;
 
+  // A JAR from the owner's library (/api/jars) wins over the engine download.
+  // custom_jar_path holds the library id; ownership was checked at create.
+  if (server.custom_jar_path) {
+    const row = require("../db")
+      .prepare("SELECT storage_path FROM jars WHERE id = ? AND user_id = ?")
+      .get(server.custom_jar_path, server.user_id);
+    if (!row || !fs.existsSync(row.storage_path))
+      throw new Error("Custom JAR is missing from your JAR library — re-upload it or switch engine");
+    fs.mkdirSync(dir, { recursive: true });
+    // A copy, not a hardlink: the server's copy must not share an inode with
+    // the library file (an in-place write to one would change the other).
+    fs.copyFileSync(row.storage_path, jarPath, fs.constants.COPYFILE_FICLONE);
+    console.log(`[jar] ${server.id} using custom JAR ${server.custom_jar_path}`);
+    return jarPath;
+  }
+
   const t = (server.type || "").toLowerCase();
   let info;
   if (t === "vanilla") info = await vanillaJarUrl(server.version);

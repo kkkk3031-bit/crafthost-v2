@@ -2183,10 +2183,12 @@ router.post("/:id/swap-jar", async (req, res) => {
       );
     }
 
+    // Picking an engine replaces an uploaded custom JAR (ensureJar would
+    // otherwise keep re-placing it over the chosen engine).
     db.prepare(
-      "UPDATE servers SET type = ?, version = ?, status = ? WHERE id = ?",
+      "UPDATE servers SET type = ?, version = ?, status = ?, custom_jar_path = NULL WHERE id = ?",
     ).run(type, version || null, "starting", s.id);
-    const updated = { ...s, type, version: version || null };
+    const updated = { ...s, type, version: version || null, custom_jar_path: null };
     const r = await dc.startServer(updated);
     // A stop arrived while the new jar was downloading — the stop already set
     // status=offline; keep the new type/version (it applies on next start).
@@ -2217,8 +2219,8 @@ router.post("/:id/swap-jar", async (req, res) => {
     // mark offline so the card doesn't sit on "starting" forever.
     try {
       db.prepare(
-        "UPDATE servers SET type = ?, version = ?, status = ? WHERE id = ?",
-      ).run(prev.type, prev.version, "offline", s.id);
+        "UPDATE servers SET type = ?, version = ?, status = ?, custom_jar_path = ? WHERE id = ?",
+      ).run(prev.type, prev.version, "offline", s.custom_jar_path || null, s.id);
     } catch {}
     require("../lib/events").record("swap_rollback", s.id, {
       attempted: `${type} ${version || "latest"}`,
