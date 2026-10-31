@@ -129,6 +129,17 @@ try {
   if (created.status >= 400) throw new Error("create failed");
   const sid = created.body.id;
 
+  // An old plugin build, so the version change has something to update.
+  // Chunky 1.3.92 (paper, 1.20.x); MOD_POPUP=0 skips the popup checks.
+  const MOD_POPUP = process.env.MOD_POPUP !== "0";
+  if (MOD_POPUP) {
+    const inst = await apiCall(`/api/servers/${sid}/plugins/install`, {
+      method: "POST",
+      body: { version_id: "B0xkCkk4" },
+    });
+    expect("old Chunky 1.3.92 installed", inst.status === 200, `HTTP ${inst.status} ${inst.body?.error || inst.body?.version || ""}`);
+  }
+
   await page.goto(BASE + "/dashboard.html", { waitUntil: "networkidle" });
   const card = page.locator(`.server-card[data-id="${sid}"]`);
   await card.waitFor({ timeout: 15000 });
@@ -207,6 +218,31 @@ try {
     const applyEnabled = await page.evaluate(() => !document.getElementById("sjApply").disabled);
     expect("Apply re-enabled after busy error", applyEnabled);
     await page.click("#swapJarModal .close-btn");
+  }
+
+  // ── 4b) Version change offers plugin updates automatically ─────────────
+  if (MOD_POPUP) {
+    step(`auto popup: plugin updates for ${UP_TO}`);
+    let popup = false;
+    try { await page.waitForSelector("#modUpdatesModal.show", { timeout: 30000 }); popup = true; } catch {}
+    expect("update modal opens by itself after Apply", popup);
+    if (popup) {
+      await page.waitForSelector('#muBody .mu-row[data-status="update"]', { timeout: 30000 }).catch(() => {});
+      const rowTxt = ((await page.locator("#muBody .mu-row").first().textContent().catch(() => "")) || "").replace(/\s+/g, " ").trim();
+      expect(`popup lists Chunky 1.3.92 → ${UP_TO} build`, /Chunky-1\.3\.92\.jar/.test(rowTxt) && /1\.3\.92 → \S+/.test(rowTxt), rowTxt.slice(0, 90));
+      const head = (await page.textContent("#muBody p").catch(() => "")) || "";
+      expect(`popup targets ${UP_TO}`, head.includes(UP_TO), head.trim().slice(0, 60));
+      await page.click("#muApply");
+      await page.waitForSelector('#muBody .mu-row[data-status="current"]', { timeout: 60000 }).catch(() => {});
+      const st = await page.locator("#muBody .mu-row").first().getAttribute("data-status").catch(() => null);
+      expect("Update all → Chunky is current", st === "current", String(st));
+      const pl = await apiCall(`/api/servers/${sid}/plugins`);
+      const names = (pl.body?.plugins || []).map((p) => p.name);
+      expect("old JAR gone, new JAR in plugins/", names.some((n) => /^Chunky-/.test(n)) && !names.includes("Chunky-1.3.92.jar"), names.join(", "));
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+      expect("popup closes", !(await page.isVisible("#modUpdatesModal.show")));
+    }
   }
 
   // Card must flip to Starting… without a reload (optimistic update).
