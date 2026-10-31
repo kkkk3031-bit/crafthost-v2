@@ -31,14 +31,22 @@ const COOKIE_OPTS = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
+// Emails and usernames are matched case-insensitively everywhere (Bob@x.com
+// and bob@x.com are one person; "Admin" must not coexist with "admin").
+// Emails are stored lower-cased; usernames keep the casing the user chose.
+const normEmail = (e) => String(e).trim().toLowerCase();
+// Reset tokens are stored as SHA-256: a leaked DB must not hold live links.
+const tokenHash = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
+
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body || {};
+  const { username, password } = req.body || {};
+  const email = typeof req.body?.email === 'string' ? normEmail(req.body.email) : req.body?.email;
   if (!username || !email || !password || !isStr(username, email, password))
     return res.status(400).json({ error: 'Missing fields' });
   const invalid = passwordError(password) || usernameError(username) || emailError(email);
   if (invalid) return res.status(400).json({ error: invalid });
 
-  const exists = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(email, username);
+  const exists = db.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE').get(email, username);
   if (exists) return res.status(409).json({ error: 'Email or username already exists' });
 
   const hash = await hashPassword(password);
@@ -91,7 +99,7 @@ router.post('/login', async (req, res) => {
   const { email, password, remember } = req.body || {};
   if (!isStr(email, password)) return res.status(400).json({ error: 'Email and password required' });
   // An exact email match wins over a username match.
-  const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ? ORDER BY (email = ?) DESC LIMIT 1').get(email, email, email);
+  const user = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE OR username = ? COLLATE NOCASE ORDER BY (email = ? COLLATE NOCASE) DESC LIMIT 1').get(email.trim(), email.trim(), email.trim());
   if (!(await verifyPassword(password, user?.password_hash))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -129,24 +137,30 @@ router.patch('/me', authMiddleware, async (req, res) => {
 
   const updates = [];
   const params = [];
-  if (email && email !== u.email) {
-    const bad = emailError(email);
+  if (email && normEmail(email) !== u.email) {
+    const bad = emailError(normEmail(email));
     if (bad) return res.status(400).json({ error: bad });
-    const taken = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.user.id);
+    const taken = db.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE AND id != ?').get(normEmail(email), req.user.id);
     if (taken) return res.status(409).json({ error: 'Email already in use' });
-    updates.push('email = ?'); params.push(email);
+    updates.push('email = ?'); params.push(normEmail(email));
   }
   if (username && username !== u.username) {
     const bad = usernameError(username);
     if (bad) return res.status(400).json({ error: bad });
-    const taken = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
+    const taken = db.prepare('SELECT id FROM users WHERE username = ? COLLATE NOCASE AND id != ?').get(username, req.user.id);
     if (taken) return res.status(409).json({ error: 'Username already in use' });
     updates.push('username = ?'); params.push(username);
   }
   if (!updates.length) return res.json({ ok: true, user: { id: u.id, username: u.username, email: u.email, role: u.role } });
 
   params.push(req.user.id);
-  db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  try {
+    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  } catch (err) {
+    // A concurrent change took the name/email first; the unique index decides.
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.status(409).json({ error: 'Email or username already in use' });
+    throw err;
+  }
   const fresh = db.prepare('SELECT id, username, email, role, token_version FROM users WHERE id = ?').get(req.user.id);
   // Re-sign token so the JWT payload reflects new username
   const token = signToken(fresh);
@@ -226,12 +240,12 @@ router.post('/forgot', (req, res) => {
     ok: true,
     message: 'If an account exists, a reset link has been issued. Ask in our Discord to receive it.',
   };
-  const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email);
+  const user = db.prepare('SELECT id, email FROM users WHERE email = ? COLLATE NOCASE').get(normEmail(email));
   if (!user) return res.json(generic); // same shape — no enumeration
   const token = crypto.randomBytes(32).toString('hex');
   const expires = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour
   db.prepare('INSERT INTO password_resets (token, user_id, expires_at) VALUES (?, ?, ?)')
-    .run(token, user.id, expires);
+    .run(tokenHash(token), user.id, expires);
   // Host header (not attacker-supplied Origin) — behind Railway's proxy this
   // is the real deploy host, so the logged link can't be poisoned.
   const resetUrl = `${req.protocol}://${req.get('host')}/reset.html?token=${token}`;
@@ -247,21 +261,21 @@ router.post('/reset', async (req, res) => {
   const invalid = passwordError(password);
   if (invalid) return res.status(400).json({ error: invalid });
 
-  const row = db.prepare('SELECT * FROM password_resets WHERE token = ?').get(token);
+  const row = db.prepare('SELECT * FROM password_resets WHERE token = ?').get(tokenHash(token));
   if (!row) return res.status(400).json({ error: 'Invalid or expired token' });
   if (row.used_at) return res.status(400).json({ error: 'Token already used' });
   if (row.expires_at < Math.floor(Date.now() / 1000)) return res.status(400).json({ error: 'Token expired' });
 
   // Claim the token atomically before the (async) hash, so two concurrent
   // requests can't both spend the same link.
-  const claimed = db.prepare('UPDATE password_resets SET used_at = strftime(\'%s\',\'now\') WHERE token = ? AND used_at IS NULL').run(token);
+  const claimed = db.prepare('UPDATE password_resets SET used_at = strftime(\'%s\',\'now\') WHERE token = ? AND used_at IS NULL').run(row.token);
   if (claimed.changes !== 1) return res.status(400).json({ error: 'Token already used' });
 
   const hash = await hashPassword(password);
   // A reset is often recovery from a takeover: sign out every existing session.
   db.prepare('UPDATE users SET password_hash = ?, token_version = token_version + 1 WHERE id = ?').run(hash, row.user_id);
   // Invalidate any other outstanding tokens for this user
-  db.prepare('DELETE FROM password_resets WHERE user_id = ? AND token != ?').run(row.user_id, token);
+  db.prepare('DELETE FROM password_resets WHERE user_id = ? AND token != ?').run(row.user_id, row.token);
 
   res.json({ ok: true, message: 'Password updated. Please sign in.' });
 });

@@ -223,4 +223,21 @@ db.prepare('UPDATE plans SET hidden = 0').run();
 const hidePlan = db.prepare('UPDATE plans SET hidden = 1 WHERE id = ?');
 DEPRECATED_PLAN_IDS.forEach(id => hidePlan.run(id));
 
+// Case-insensitive uniqueness for logins (Bob@x.com == bob@x.com, Admin ==
+// admin). Skipped with a warning if an instance already holds such a pair.
+for (const [name, col] of [['idx_users_email_nocase', 'email'], ['idx_users_username_nocase', 'username']]) {
+  try {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ${name} ON users(${col} COLLATE NOCASE)`);
+  } catch (err) {
+    console.warn(`[db] ${name} not created (case-duplicate ${col}s exist): ${err.message}`);
+  }
+}
+// Stored emails are lower-case from now on; normalise existing rows when
+// that cannot collide.
+try {
+  db.exec(`UPDATE users SET email = lower(email) WHERE email != lower(email)`);
+} catch (err) {
+  console.warn('[db] email lower-casing skipped:', err.message);
+}
+
 module.exports = db;
