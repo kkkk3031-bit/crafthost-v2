@@ -571,8 +571,11 @@ router.post("/clone", async (req, res) => {
     "world_nether",
     "world_the_end",
     "plugins",
+    "mods",
     "config",
   ];
+  // Add-on folders: plugins/ (Bukkit family) and mods/ (Fabric/Forge family).
+  const ADDON_DIRS = new Set(["plugins", "mods"]);
   const SKIP = new Set([
     "server.jar",
     "eula.txt",
@@ -585,7 +588,6 @@ router.post("/clone", async (req, res) => {
     "session.lock",
     "logs",
   ]);
-  const COPY_DIRS_FILTERED = COPY_DIRS;
 
   const srcRoot = path.join(DATA_DIR, src.id);
   const dstRoot = path.join(DATA_DIR, out.id);
@@ -615,20 +617,31 @@ router.post("/clone", async (req, res) => {
     }
   }
 
+  // A running source is mid-autosave at any moment: flush it first so the
+  // copy is a consistent world, not a torn one.
+  if (["online", "running"].includes(String(src.status || "").toLowerCase())) {
+    try {
+      await dc.sendRcon(src, "/save-all flush");
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
   try {
     if (!skipWorld) {
-      for (const d of COPY_DIRS_FILTERED) {
-        if (d === "plugins" && skipPlugins) continue;
+      for (const d of COPY_DIRS) {
+        if (ADDON_DIRS.has(d) && skipPlugins) continue;
         const srcDir = path.join(srcRoot, d);
         if (fs.existsSync(srcDir)) {
           await copyDir(srcDir, path.join(dstRoot, d));
         }
       }
     } else if (!skipPlugins) {
-      // skipWorld=true but still copy plugins
-      const srcDir = path.join(srcRoot, "plugins");
-      if (fs.existsSync(srcDir))
-        await copyDir(srcDir, path.join(dstRoot, "plugins"));
+      // skipWorld=true but still copy plugins / mods
+      for (const d of ADDON_DIRS) {
+        const srcDir = path.join(srcRoot, d);
+        if (fs.existsSync(srcDir))
+          await copyDir(srcDir, path.join(dstRoot, d));
+      }
     }
     // Copy ALL top-level flat files except those in SKIP. This matches user
     // expectation (custom configs, banlists, motd icons, .txt notes get copied)

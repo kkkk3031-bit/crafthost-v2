@@ -2,7 +2,8 @@
 // Plugin / mod install: each engine gets its add-ons in the folder it loads
 // from (Paper → plugins/, Fabric → mods/), vanilla is refused, and the
 // Modrinth proxy clamps its inputs. Hits the real Modrinth API (small JARs),
-// so it is not part of `npm test`. Run against an isolated local backend:
+// so it is not part of `npm test`. Run against an isolated local backend
+// with MAX_SERVERS_PER_USER=5 (it creates four servers):
 //
 //   BASE=http://localhost:4099 DATA_DIR=<its DATA_DIR> node scripts/test-plugin-install.mjs
 
@@ -73,6 +74,11 @@ try {
     check(r.status === 200 && r.body?.dir === 'mods', `fabric: install chunky → 200 mods/ (HTTP ${r.status} ${r.body?.error || ''})`);
     check(jars(path.join(DATA_DIR, fabric, 'mods')).some(f => /chunky/i.test(f)), 'fabric: JAR landed in mods/');
     check(jars(path.join(DATA_DIR, fabric, 'plugins')).length === 0, 'fabric: nothing in plugins/');
+    // Clone keeps the mods (mods/ used to be left out of clones).
+    const cl = await api('/api/servers/clone', { method: 'POST', body: { source_id: fabric, name: 'pi-clone' } });
+    const cid = cl.body?.id || cl.body?.server?.id;
+    if (cid) created.push(cid);
+    check(cl.status === 200 && jars(path.join(DATA_DIR, cid || 'x', 'mods')).some(f => /chunky/i.test(f)), `clone of fabric server keeps mods/ (HTTP ${cl.status} ${cl.body?.error || ''})`);
     const bad = await api(`/api/servers/${fabric}/plugins/install`, { method: 'POST', body: { project_id: 'worldguard' } });
     check(bad.status === 404, `fabric: Bukkit-only plugin refused (HTTP ${bad.status})`);
     // A real pack: every file is downloaded from an allowed host and
