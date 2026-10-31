@@ -26,6 +26,12 @@ await page.waitForSelector('.toast:has-text("✓")', { timeout: 30000 }).catch((
 console.log('toast 2:', await page.locator('.toast').allInnerTexts());
 const sid = (await (await page.request.get(BASE + '/api/servers', { headers: H })).json()).servers[0].id;
 console.log('installed:', (await (await page.request.get(BASE + `/api/servers/${sid}/plugins`, { headers: H })).json()).plugins.map(p => p.name));
+await page.waitForTimeout(800);
+console.log('installed chips:', await page.locator('.mp-inst-name').allInnerTexts(), '| sub:', await page.locator('#installedSub').innerText());
+page.once('dialog', d => d.accept());
+await page.locator('.mp-inst-del').first().click();
+await page.waitForTimeout(1500);
+console.log('after remove:', await page.locator('#installedRow').innerText(), '| toast:', (await page.locator('.toast').allInnerTexts()).slice(-1));
 if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
 console.log('page errors:', errs);
 await page.request.delete(BASE + '/api/auth/me', { headers: H, data: { password: pw, confirm: 'DELETE' } });
