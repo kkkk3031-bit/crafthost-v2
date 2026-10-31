@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const db = require('../db');
 const { authMiddleware } = require('../lib/auth');
 const storage = require('../lib/storage');
+const oplock = require('../lib/oplock');
 
 const router = express.Router({ mergeParams: true });
 router.use(authMiddleware);
@@ -39,6 +40,22 @@ function allowedPackUrl(u) {
   } catch { return false; }
 }
 
+// Loaders a server can load, best match first. A Paper server still loads
+// Spigot/Bukkit plugins, so those count; it must never get a Fabric mod.
+const FAMILY = {
+  paper:    ['paper', 'spigot', 'bukkit'],
+  spigot:   ['spigot', 'paper', 'bukkit'],
+  purpur:   ['purpur', 'paper', 'spigot', 'bukkit'],
+  bukkit:   ['bukkit', 'spigot', 'paper'],
+  fabric:   ['fabric'],
+  neoforge: ['neoforge', 'forge'],
+  forge:    ['forge', 'neoforge'],
+};
+function loaderFamily(type) {
+  const t = String(type || '').toLowerCase();
+  return FAMILY[t] || (t ? [t] : null);
+}
+
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -50,6 +67,17 @@ async function modrinthJson(pathAndQuery) {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!r.ok) return null;
+  return r.json();
+}
+
+async function modrinthPost(pathname, body) {
+  const r = await fetch(`${MODRINTH}${pathname}`, {
+    method: 'POST',
+    headers: { 'User-Agent': UA, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!r.ok) throw new HttpError(502, `Modrinth lookup failed (HTTP ${r.status})`);
   return r.json();
 }
 
@@ -133,16 +161,7 @@ router.post('/install', async (req, res) => {
       // (WorldGuard, Spark) tag themselves only as 'bukkit'. So try progressively
       // wider filters before giving up.
       const gameV  = (s.version && s.version !== 'LATEST') ? s.version : null;
-      const FAMILY = {
-        paper:    ['paper', 'spigot', 'bukkit'],
-        spigot:   ['spigot', 'paper', 'bukkit'],
-        purpur:   ['purpur', 'paper', 'spigot', 'bukkit'],
-        bukkit:   ['bukkit', 'spigot', 'paper'],
-        fabric:   ['fabric'],
-        neoforge: ['neoforge', 'forge'],
-        forge:    ['forge', 'neoforge'],
-      };
-      const loaderList = FAMILY[loader] || (loader ? [loader] : null);
+      const loaderList = loaderFamily(loader);
 
       async function tryQuery({ loaders, version }) {
         const params = new URLSearchParams();
@@ -321,6 +340,129 @@ router.post('/install-modpack', async (req, res) => {
     console.warn(`[plugin.install-modpack] ${project_id || version_id}: ${err.message}`);
     const status = err.status || (err.name === 'TimeoutError' ? 504 : 500);
     res.status(status).json({ error: err.message || 'Modpack install failed' });
+  }
+});
+
+// ── Updates ────────────────────────────────────────────────────────────────
+// Installed JARs are identified by their sha1 on Modrinth, so no install
+// records are needed: JARs added by hand or by a modpack are covered too.
+// The newest version is filtered by the server's loader family and current
+// Minecraft version, so after a version change this offers the builds made
+// for the new version.
+const MAX_UPDATE_FILES = 300;
+
+async function checkUpdates(s) {
+  const dir = pluginsDir(s);
+  const entries = (await fsp.readdir(dir, { withFileTypes: true }))
+    .filter(e => e.isFile() && /\.jar$/i.test(e.name))
+    .slice(0, MAX_UPDATE_FILES);
+  // Streamed: a big modpack JAR shouldn't be buffered whole just to hash it.
+  const sha1File = (file) => new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha1');
+    fs.createReadStream(file).on('error', reject).on('data', (c) => h.update(c)).on('end', () => resolve(h.digest('hex')));
+  });
+  const files = [];
+  for (const e of entries) files.push({ name: e.name, sha1: await sha1File(path.join(dir, e.name)) });
+  if (!files.length) return { dir: addonDirName(s.type), mc_version: s.version, items: [] };
+
+  const hashes = files.map(f => f.sha1);
+  const filters = { hashes, algorithm: 'sha1', loaders: loaderFamily(s.type) || [] };
+  if (s.version && s.version !== 'LATEST') filters.game_versions = [s.version];
+  const [current, latest] = await Promise.all([
+    modrinthPost('/version_files', { hashes, algorithm: 'sha1' }),
+    modrinthPost('/version_files/update', filters),
+  ]);
+
+  const items = files.map((f) => {
+    const cur = current?.[f.sha1] || null;
+    const nxt = latest?.[f.sha1] || null;
+    const nf = nxt && ((nxt.files || []).find(x => x.primary) || nxt.files?.[0]);
+    let status = 'unknown';               // not on Modrinth (custom/hand-made JAR)
+    if (cur) status = 'current';
+    if (cur && !nxt) status = 'no_build';  // no build for this MC version/loader
+    if (cur && nxt && nxt.id !== cur.id && nf && /\.jar$/i.test(nf.filename || '')) status = 'update';
+    return {
+      name: f.name,
+      status,
+      project_id: cur?.project_id || null,
+      current: cur ? { id: cur.id, version_number: cur.version_number } : null,
+      latest: status === 'update'
+        ? { id: nxt.id, version_number: nxt.version_number, filename: nf.filename, size: nf.size || 0 }
+        : null,
+      _file: status === 'update' ? nf : null,
+    };
+  });
+  return { dir: addonDirName(s.type), mc_version: s.version, items };
+}
+
+const publicItem = ({ _file, ...rest }) => rest;
+
+// GET /api/servers/:id/plugins/updates
+router.get('/updates', async (req, res) => {
+  const s = ownedServer(req, res); if (!s) return;
+  if ((s.type || '').toLowerCase() === 'vanilla')
+    return res.json({ dir: 'plugins', mc_version: s.version, items: [], updates: 0 });
+  try {
+    const r = await checkUpdates(s);
+    const items = r.items.map(publicItem);
+    res.json({ ...r, items, updates: items.filter(i => i.status === 'update').length });
+  } catch (err) {
+    console.warn(`[plugin.updates] ${s.id}: ${err.message}`);
+    res.status(err.status || (err.name === 'TimeoutError' ? 504 : 500)).json({ error: err.message || 'Update check failed' });
+  }
+});
+
+// POST /api/servers/:id/plugins/update  { names?: string[] }  (omit = all)
+router.post('/update', async (req, res) => {
+  const s = ownedServer(req, res); if (!s) return;
+  if ((s.type || '').toLowerCase() === 'vanilla')
+    return res.status(400).json({ error: 'Vanilla servers cannot load plugins or mods. Switch to Paper or Fabric first.' });
+  const names = req.body?.names;
+  if (names !== undefined && (!Array.isArray(names) || names.some(n => typeof n !== 'string')))
+    return res.status(400).json({ error: 'names must be a list of file names' });
+  if (!oplock.acquire(s.id, 'plugins')) return res.status(409).json(oplock.busyPayload(s.id));
+  try {
+    const { items } = await checkUpdates(s);
+    const want = names ? new Set(names.map(sanitizeName)) : null;
+    const todo = items.filter(i => i.status === 'update' && (!want || want.has(i.name)));
+    const dir = pluginsDir(s);
+    const updated = [];
+    const failed = [];
+    for (const it of todo) {
+      try {
+        const buf = await downloadCapped(it._file.url, MAX_JAR_BYTES);
+        if (!hashMatches(buf, it._file.hashes)) throw new HttpError(502, 'Hash mismatch');
+        const oldPath = path.join(dir, it.name);
+        const oldSize = (await fsp.stat(oldPath).catch(() => null))?.size || 0;
+        const full = await storage.checkRoom(s.id, Math.max(0, buf.length - oldSize));
+        if (full) throw new HttpError(413, full.message);
+        const newName = sanitizeName(it._file.filename);
+        const newPath = path.join(dir, newName);
+        if (!newName || !newPath.startsWith(dir + path.sep)) throw new HttpError(502, 'Bad file name from Modrinth');
+        // Write beside, then swap in: a failed download never leaves a half JAR.
+        const tmp = path.join(dir, `.${newName}.${process.pid}.tmp`);
+        await fsp.writeFile(tmp, buf);
+        await fsp.rename(tmp, newPath);
+        if (newPath !== oldPath) await fsp.unlink(oldPath).catch(() => {});
+        updated.push({ from: it.name, to: newName, version: it.latest.version_number });
+      } catch (err) {
+        failed.push({ name: it.name, error: err.message || 'failed' });
+      }
+    }
+    storage.invalidate(s.id);
+    const live = db.prepare('SELECT status FROM servers WHERE id = ?').get(s.id)?.status;
+    audit(req.user.id, 'plugin.update', s.id, req.ip, { updated: updated.length, failed: failed.length });
+    res.json({
+      ok: failed.length === 0,
+      updated,
+      failed,
+      restart_required: updated.length > 0 && ['online', 'running', 'starting'].includes(live),
+    });
+  } catch (err) {
+    console.warn(`[plugin.update] ${s.id}: ${err.message}`);
+    res.status(err.status || (err.name === 'TimeoutError' ? 504 : 500)).json({ error: err.message || 'Update failed' });
+  } finally {
+    oplock.release(s.id);
   }
 });
 

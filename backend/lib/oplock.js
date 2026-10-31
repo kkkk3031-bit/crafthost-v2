@@ -38,7 +38,9 @@ function busyPayload(id) {
         ? "A backup restore"
         : op === "import"
           ? "A world import"
-          : "A version change";
+          : op === "plugins"
+            ? "A plugin/mod update"
+            : "A version change";
   return {
     error: `${what} is in progress for this server. Wait for it to finish.`,
     code: "busy",
