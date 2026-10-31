@@ -88,9 +88,12 @@
   --font:
     "Inter Tight", "Inter", "Tajawal", ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Tajawal sits after the Latin mono fonts: they have no Arabic glyphs, and
+     without it Arabic in mono labels fell back to a font that doesn't join
+     letters ("سيرفرا تك"). Latin and digits still render in JetBrains Mono. */
   --font-mono:
-    "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono",
-    monospace;
+    "JetBrains Mono", "IBM Plex Mono", "Tajawal", ui-monospace, "SF Mono",
+    "Cascadia Mono", monospace;
   --font-display: "Inter Tight", var(--font);
 }
 
@@ -2106,4 +2109,12 @@ h1 .msr {
 }
 .btn-discord svg {
   flex: none;
+}
+
+/* Arabic: any letter-spacing (even 0.02em) makes Chrome stop joining Arabic
+   letters, so labels like "السيرفرات النشطة" render as separate glyphs. The
+   design's tracking is for Latin; in Arabic mode it is switched off everywhere. */
+html[lang="ar"] body,
+html[lang="ar"] body * {
+  letter-spacing: normal !important;
 }
