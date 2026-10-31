@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./lib/fetch-timeout");
 
 // ─── EMERGENCY PRE-BOOT LOG PURGE ───────────────────────────────────────────
 // Runs SYNCHRONOUSLY before any DB import, before any other code. If the
