@@ -1303,6 +1303,7 @@ router.patch("/:id", async (req, res) => {
     "spawn_animals",
     "spawn_npcs",
     "scheduled_restart_at",
+    "startup_commands",
   ];
   const updates = {};
   for (const key of allowed) {
@@ -1355,6 +1356,16 @@ router.patch("/:id", async (req, res) => {
     }
   }
 
+  // Startup commands: validated list, stored newline-separated (null = none).
+  if (updates.startup_commands !== undefined) {
+    try {
+      const cmds = require("../lib/startup-commands").parse(updates.startup_commands);
+      updates.startup_commands = cmds.length ? cmds.join("\n") : null;
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
   // DB columns vs flags-only. We have: motd, difficulty, gamemode, max_players,
   // whitelist, scheduled_restart_at. All the rest (pvp, hardcore, view/simulation
   // distance, spawn protection, allow flight/nether, command blocks, force
@@ -1366,6 +1377,7 @@ router.patch("/:id", async (req, res) => {
     "max_players",
     "whitelist",
     "scheduled_restart_at",
+    "startup_commands",
   ];
   const dbSets = [];
   const dbVals = [];

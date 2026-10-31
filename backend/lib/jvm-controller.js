@@ -1369,6 +1369,28 @@ async function startServer(containerId, server) {
       console.log(
         `[jvm/${id}] ✓ READY — Done marker detected, status → online`,
       );
+      // Owner's startup commands, read fresh so a settings change applies
+      // on the next boot without a backend restart.
+      try {
+        const sc = require("./startup-commands");
+        const row = require("../db")
+          .prepare("SELECT startup_commands FROM servers WHERE id = ?")
+          .get(id);
+        const cmds = sc.fromDb(row?.startup_commands);
+        if (cmds.length) {
+          sc.run(
+            cmds,
+            (cmd) => {
+              if (!state.proc || state.proc.killed || !state.proc.stdin.writable)
+                return false;
+              state.proc.stdin.write(cmd + "\n");
+            },
+            (cmd) => console.log(`[jvm/${id}] startup command: ${cmd}`),
+          );
+        }
+      } catch (err) {
+        console.warn(`[jvm/${id}] startup commands failed: ${err.message}`);
+      }
     }
     // Detect Java heap OOM during boot. Multiple message formats are possible:
     //   • "java.lang.OutOfMemoryError: Java heap space"
@@ -1984,6 +2006,8 @@ async function prewarmJarCache() {
   // Must mirror MC_VERSIONS in frontend/js/wizard.js. Keep in sync when the
   // wizard list changes.
   const WIZARD_VERS = [
+    "26.3",
+    "26.2",
     "26.1.2",
     "1.21.11",
     "1.21.8",

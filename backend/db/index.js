@@ -78,6 +78,11 @@ if (!hasColumn('servers', 'playit_host')) {
 if (!hasColumn('servers', 'playit_port')) {
   db.exec(`ALTER TABLE servers ADD COLUMN playit_port INTEGER`);
 }
+// Console commands run once each time the server finishes booting
+// (newline-separated; see lib/startup-commands.js).
+if (!hasColumn('servers', 'startup_commands')) {
+  db.exec(`ALTER TABLE servers ADD COLUMN startup_commands TEXT`);
+}
 
 // Auto-heal timestamp — the platform records when it auto-swapped a free-plan
 // server from a heavy JAR to Paper 1.20.1 after detecting OOM, so it doesn't
