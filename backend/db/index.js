@@ -223,6 +223,11 @@ db.prepare('UPDATE plans SET hidden = 0').run();
 const hidePlan = db.prepare('UPDATE plans SET hidden = 1 WHERE id = ?');
 DEPRECATED_PLAN_IDS.forEach(id => hidePlan.run(id));
 
+// Retention prunes by time every janitor pass; without these the DELETEs
+// scan whole tables (synchronously) once player_events holds months of chat.
+db.exec(`CREATE INDEX IF NOT EXISTS idx_player_events_ts ON player_events(ts)`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at)`);
+
 // Case-insensitive uniqueness for logins (Bob@x.com == bob@x.com, Admin ==
 // admin). Skipped with a warning if an instance already holds such a pair.
 for (const [name, col] of [['idx_users_email_nocase', 'email'], ['idx_users_username_nocase', 'username']]) {
