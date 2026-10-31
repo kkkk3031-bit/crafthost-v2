@@ -390,7 +390,7 @@
           <hr style="border-color:var(--glass-border);margin:14px 0;" />
 
           <div style="font-size:12px;color:var(--slate-400);">
-            <div class="flex justify-between" style="padding:4px 0;"><span>Uptime</span><strong id="upTxt" style="color:white;">—</strong></div>
+            <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="uptime">Uptime</span><strong id="upTxt" style="color:white;">—</strong></div>
             <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="console_mc_version">MC version</span><strong id="mcVerTxt" style="color:white;">—</strong></div>
             <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="console_host_port">Host port</span><strong id="hostPortTxt" style="color:white;font-family:var(--font-mono);">—</strong></div>
             <div class="flex justify-between" style="padding:4px 0;"><span data-i18n="console_exit_code">Exit code</span><strong id="exitCodeTxt" style="color:white;">—</strong></div>
@@ -702,7 +702,7 @@ function updateStats(s) {
     return;
   }
 
-  set('exitCodeTxt', '0 (running)');
+  set('exitCodeTxt', window.t('console_exit_running'));
   if (s.tps != null) set('tps', (+s.tps).toFixed(2));
   set('upTxt', fmtUptime(s.uptime));
   if (s.mc_version) set('mcVerTxt', s.mc_version);

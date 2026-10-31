@@ -494,7 +494,7 @@ async function openLogs(sid, name) {
         </div>
       </div>
       <div class="modal-body" style="padding:0;">
-        <pre id="logsContent" style="margin:0;padding:16px 20px;font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--slate-300);background:#000;height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word;">Loading…</pre>
+        <pre id="logsContent" dir="ltr" style="margin:0;padding:16px 20px;font-family:var(--font-mono);font-size:12px;line-height:1.5;color:var(--slate-300);background:#000;height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word;">Loading…</pre>
       </div>
       <div class="modal-foot" style="border-top:1px solid var(--glass-border);">
         <span class="text-muted" style="font-size:12px;margin-right:auto;" data-i18n="logs_last_lines">Last 200 lines · auto-refreshes</span>

@@ -269,7 +269,7 @@
           <div class="fm-view">
             <div class="fm-toolbar">
               <button class="btn btn-ghost btn-sm" id="upBtn" title="Up one level"><span class="msr">arrow_upward</span></button>
-              <div class="fm-crumb" id="crumb">/</div>
+              <div class="fm-crumb" id="crumb" dir="ltr">/</div>
               <button class="btn btn-secondary btn-sm" id="refreshBtn" title="Refresh">↻</button>
             </div>
             <div class="fm-body" id="fmBody"></div>
@@ -282,16 +282,16 @@
         <div style="position:absolute;inset:5% 8%;background:var(--slate-900);border:1px solid var(--glass-border);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;">
           <div class="editor-bar">
             <div class="editor-title-wrap">
-              <strong id="editorTitle">file.txt</strong>
+              <strong id="editorTitle" dir="ltr" style="unicode-bidi:isolate;">file.txt</strong>
               <span class="text-muted" id="editorMeta"></span>
-              <span id="editorDirty" class="editor-dirty">● UNSAVED</span>
+              <span id="editorDirty" class="editor-dirty">● <span data-i18n="editor_unsaved">UNSAVED</span></span>
             </div>
             <div class="editor-actions">
-              <button class="btn btn-primary btn-sm" id="editorSave"><span class="msr">save</span> Save</button>
-              <button class="btn btn-ghost btn-sm" id="editorClose"><span class="msr">close</span> Close</button>
+              <button class="btn btn-primary btn-sm" id="editorSave"><span class="msr">save</span> <span data-i18n="save">Save</span></button>
+              <button class="btn btn-ghost btn-sm" id="editorClose"><span class="msr">close</span> <span data-i18n="close">Close</span></button>
             </div>
           </div>
-          <textarea id="editorArea" spellcheck="false" style="flex:1;background:#0d1117;color:#c9d1d9;font-family:var(--font-mono);font-size:13px;padding:16px;border:none;outline:none;resize:none;white-space:pre;"></textarea>
+          <textarea id="editorArea" dir="ltr" spellcheck="false" style="flex:1;background:#0d1117;color:#c9d1d9;font-family:var(--font-mono);font-size:13px;padding:16px;border:none;outline:none;resize:none;white-space:pre;"></textarea>
         </div>
       </div>
 
@@ -317,7 +317,7 @@
           </div>
           <div style="margin-top:24px;display:flex;gap:10px;justify-content:end;">
             <label class="flex items-center gap-2"><input type="checkbox" id="p_restart" checked /> Restart to apply</label>
-            <button class="btn btn-primary" id="p_save"><span class="msr">save</span> Save</button>
+            <button class="btn btn-primary" id="p_save"><span class="msr">save</span> <span data-i18n="save">Save</span></button>
           </div>
         </div>
       </div>
@@ -542,7 +542,7 @@ function renderFiles(items) {
   body.innerHTML = items.map((f, i) => `
     <div class="fm-row" data-i="${i}">
       ${fileIcon(f.type)}
-      <div class="name">${escapeHtml(f.name)}</div>
+      <div class="name" dir="auto">${escapeHtml(f.name)}</div>
       <div class="size">${f.type === 'folder' ? '—' : fmtBytes(f.size)}</div>
       <div class="date">${fmtRel(f.mtime)}</div>
       <div class="act">
