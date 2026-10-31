@@ -28,3 +28,34 @@ jobs:
         run: npm run test:full
       - name: Dependency audit (production deps)
         run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    # Build the production image exactly as Railway would, boot it, and prove
+    # it serves: /api/health must answer with the JVM backend available.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t crafthost:ci .
+      - name: Image facts
+        run: |
+          docker image ls crafthost:ci --format 'size: {{.Size}}'
+          docker run --rm crafthost:ci java -version 2>&1 | head -1
+          docker run --rm crafthost:ci sh -c 'test ! -d node_modules/playwright && echo "no playwright in image"'
+      - name: Boot and health-check
+        run: |
+          docker run -d --name ch -p 4000:4000 \
+            -e JWT_SECRET=ci-only-secret -e PREWARM=0 -e AUTO_SMOKE=0 -e AUTO_STARTER=0 \
+            crafthost:ci
+          for i in $(seq 1 60); do
+            if curl -fsS localhost:4000/api/health > health.json; then break; fi
+            sleep 1
+          done
+          cat health.json; echo
+          grep -q '"ok":true' health.json
+          grep -q '"jvm":true' health.json
+          curl -fsS -o /dev/null -w 'landing %{http_code}\n' localhost:4000/
+          curl -fsS -o /dev/null -w 'dashboard %{http_code}\n' localhost:4000/dashboard.html
+      - name: Container log
+        if: always()
+        run: docker logs ch 2>&1 | tail -40 || true
