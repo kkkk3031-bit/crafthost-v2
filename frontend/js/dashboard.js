@@ -369,6 +369,13 @@ function renderServer(s) {
         <button role="menuitem" onclick="closeCardMenu();openSwapJar('${escapeHtml(s.id)}', '${escapeHtml(s.type)}', '${escapeHtml(s.version || "")}', '${escapeHtml(s.plan_id || "free")}')">
           <span class="sc-menu-icon">📦</span><span>${t("menu_change_jar")}</span>
         </button>
+        ${
+          (s.type || "").toLowerCase() !== "vanilla"
+            ? `<button role="menuitem" onclick="closeCardMenu();openModUpdates('${escapeHtml(s.id)}', '${jsArg(s.name)}')">
+          <span class="sc-menu-icon">⬆️</span><span>${t("menu_update_mods")}</span>
+        </button>`
+            : ""
+        }
         <button role="menuitem" onclick="closeCardMenu();copyText('${escapeHtml(ip)}')">
           <span class="sc-menu-icon">📋</span><span>${t("menu_copy_address")}</span>
         </button>
@@ -784,6 +791,9 @@ async function openSwapJar(sid, curType, curVer, planId) {
       renderServers();
       tightPollServerStatus(sid, "online");
       loadServers();
+      // Installed plugins/mods were built for the old version — offer the
+      // builds for the new one (quietly skipped when there are none).
+      if (type !== "vanilla") offerModUpdatesAfterSwap(sid, s?.name || "");
     } catch (err) {
       const code = err?.data?.code;
       if (code === "unsafe_downgrade") {
@@ -1002,6 +1012,103 @@ window.openSwapJar = openSwapJar;
 window.promoteServer = promoteServer;
 
 // ── Server Settings modal ─────────────────────────────────────────────
+// ── Plugin/mod updates ────────────────────────────────────────────────────
+async function offerModUpdatesAfterSwap(sid, name) {
+  try {
+    const r = await api(`/api/servers/${sid}/plugins/updates`);
+    if (r.updates > 0) {
+      toast(window.tf("mu_after_swap", { n: r.updates }));
+      openModUpdates(sid, name, r);
+    }
+  } catch {
+    /* the check is a convenience; the swap itself already succeeded */
+  }
+}
+
+async function openModUpdates(sid, name, preloaded) {
+  let modal = document.getElementById("modUpdatesModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modUpdatesModal";
+    modal.className = "modal-bg"; // Escape/backdrop close via app.js
+    document.body.appendChild(modal);
+  }
+  const close = `document.getElementById('modUpdatesModal').classList.remove('show')`;
+  modal.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()" style="max-width:600px;">
+      <div class="modal-head">
+        <h3>⬆️ ${t("mu_title")} · ${escapeHtml(name)}</h3>
+        <button class="close-btn" onclick="${close}">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="muBody" class="text-muted">${t("mu_checking")}</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="${close}">${t("cancel")}</button>
+        <button class="btn btn-primary" id="muApply" disabled>${window.tf("mu_update_all", { n: 0 })}</button>
+      </div>
+    </div>`;
+  modal.classList.add("show");
+  const body = document.getElementById("muBody");
+  const btn = document.getElementById("muApply");
+  const label = {
+    update: ["mu_st_update", "var(--emerald-400, #34d399)"],
+    current: ["mu_st_current", "var(--slate-400)"],
+    no_build: ["mu_st_no_build", "var(--amber-400, #fbbf24)"],
+    unknown: ["mu_st_unknown", "var(--slate-500)"],
+  };
+  const render = (r) => {
+    const items = r.items || [];
+    const n = items.filter((i) => i.status === "update").length;
+    btn.textContent = window.tf("mu_update_all", { n });
+    btn.disabled = n === 0;
+    if (!items.length) {
+      body.innerHTML = `<p class="text-muted">${t("mu_none_installed")}</p>`;
+      return;
+    }
+    const engine = (servers.find((x) => x.id === sid)?.type || "").replace(/^./, (c) => c.toUpperCase());
+    body.innerHTML = `
+      <p class="text-muted" style="font-size:12px;margin:0 0 10px;">${escapeHtml(window.tf("mu_for", { engine, version: r.mc_version || "" }))}${n ? "" : " · " + t("mu_all_current")}</p>
+      <div class="mu-list" style="display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto;">
+        ${items
+          .map((i) => {
+            const [key, color] = label[i.status] || label.unknown;
+            const ver = i.status === "update"
+              ? `${escapeHtml(i.current?.version_number || "?")} → <strong>${escapeHtml(i.latest.version_number)}</strong>`
+              : escapeHtml(i.current?.version_number || "");
+            return `<div class="mu-row" data-name="${escapeHtml(i.name)}" data-status="${i.status}" style="display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--glass-border);border-radius:8px;">
+              <div style="min-width:0;"><div dir="ltr" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(i.name)}</div>
+              <div dir="ltr" class="text-muted" style="font-size:12px;">${ver}</div></div>
+              <span style="font-size:12px;white-space:nowrap;color:${color};">${t(key)}</span>
+            </div>`;
+          })
+          .join("")}
+      </div>`;
+  };
+  try {
+    render(preloaded || (await api(`/api/servers/${sid}/plugins/updates`)));
+  } catch (err) {
+    body.innerHTML = `<p style="color:var(--red-400,#f87171);">${escapeHtml(err.message)}</p>`;
+    return;
+  }
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = t("mu_updating");
+    try {
+      const r = await api(`/api/servers/${sid}/plugins/update`, { method: "POST", body: {} });
+      const n = r.updated?.length || 0;
+      if (n) toast(window.tf(r.restart_required ? "mu_done" : "mu_done_offline", { n }));
+      if (r.failed?.length) toast(window.tf("mu_failed", { n: r.failed.length }), "error");
+      render(await api(`/api/servers/${sid}/plugins/updates`));
+    } catch (err) {
+      toast(err.message, "error");
+      btn.disabled = false;
+      btn.textContent = window.tf("mu_update_all", { n: "" }).replace(" ()", "");
+    }
+  };
+}
+window.openModUpdates = openModUpdates;
+
 async function openSettings(sid, name) {
   let modal = document.getElementById("settingsModal");
   if (!modal) {
@@ -1069,6 +1176,10 @@ async function openSettings(sid, name) {
               <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('set_schedrestart').value=''">${t("disable")}</button>
               <span class="text-muted" style="font-size:12px;">${t("set_empty_off")}</span>
             </div>
+          </div>
+          <div class="field" style="margin-top:14px;">
+            <label class="label" for="set_startup_cmds">${t("set_startup_cmds")} <span class="text-muted" style="font-weight:400;font-size:11.5px;">${t("set_startup_hint")}</span></label>
+            <textarea id="set_startup_cmds" class="input" rows="4" dir="ltr" spellcheck="false" maxlength="6000" style="font-family:var(--font-mono);font-size:12.5px;resize:vertical;" placeholder="gamerule keepInventory true&#10;say Server is up!"></textarea>
           </div>
         </div>
       </div>
@@ -1140,6 +1251,8 @@ async function openSettings(sid, name) {
     const row = (servers || []).find((x) => x.id === sid);
     document.getElementById("set_schedrestart").value =
       row?.scheduled_restart_at || "";
+    document.getElementById("set_startup_cmds").value =
+      row?.startup_commands || "";
   }
   try {
     const r = await api(`/api/servers/${sid}/properties`);
@@ -1385,6 +1498,7 @@ async function openSettings(sid, name) {
       // Empty string means "disable scheduled restart"; non-empty must match HH:MM
       scheduled_restart_at:
         document.getElementById("set_schedrestart").value || "",
+      startup_commands: document.getElementById("set_startup_cmds").value,
       restart: document.getElementById("set_restart").checked,
     };
     const btn = document.getElementById("set_save");
@@ -1444,8 +1558,13 @@ function renderServers() {
     const existing = grid.querySelector(
       `.server-card[data-id="${CSS.escape(id)}"]`,
     );
-    if (existing) patchCard(existing, html);
-    else grid.insertAdjacentHTML("beforeend", html);
+    if (!existing) {
+      grid.insertAdjacentHTML("beforeend", html);
+      // Record each section's source markup before the i18n observer runs.
+      for (const el of grid.lastElementChild?.children || []) el.__src = el.outerHTML;
+    }
+    // A section held back (open menu) is retried on the next render.
+    else if (!patchCard(existing, html)) lastCardHtml.delete(id);
   });
   updateSummary();
 }
@@ -1459,9 +1578,15 @@ function patchCard(existing, html) {
   const tpl = document.createElement("template");
   tpl.innerHTML = html.trim();
   const next = tpl.content.firstElementChild;
-  if (!next) return;
+  if (!next) return true;
   const oldKids = Array.from(existing.children);
   const newKids = Array.from(next.children);
+  // Each section remembers the markup it was rendered from (__src). Diffing
+  // against that, not live outerHTML, matters: the i18n observer adds
+  // attributes after insertion (data-title-en on every tooltip), so live
+  // markup never equals fresh markup and every section with a title= was
+  // rebuilt on each poll tick, buttons included.
+  newKids.forEach((el) => (el.__src = el.outerHTML));
   // Structure changed (section added/removed, e.g. crash banner appeared or
   // tunnel address row toggled) — full swap is correct there.
   if (
@@ -1480,19 +1605,24 @@ function patchCard(existing, html) {
           newKids.map((k) => k.className || k.tagName).join("|"),
       );
     existing.replaceWith(next);
-    return;
+    return true;
   }
   // Same structure — swap only the children whose markup differs. Keep the
-  // actions row untouched while its menu is open so the menu doesn't snap shut.
+  // actions row untouched while its menu is open so the menu doesn't snap
+  // shut; it keeps its old __src, so it is replaced once the menu closes.
+  let complete = true;
   oldKids.forEach((el, i) => {
-    if (el.outerHTML === newKids[i].outerHTML) return;
+    if ((el.__src ?? el.outerHTML) === newKids[i].__src) return;
     if (
       el.classList.contains("sc-actions") &&
       el.querySelector(".sc-menu.show")
-    )
+    ) {
+      complete = false;
       return;
+    }
     el.replaceWith(newKids[i]);
   });
+  return complete;
 }
 
 function updateSummary() {

@@ -150,6 +150,7 @@ try {
   await menuModal(sid, "View Logs", "logsModal");
   await menuModal(sid, "Settings", "settingsModal");
   await menuModal(sid, "Change JAR", "swapJarModal");
+  await menuModal(sid, "Update plugins/mods", "modUpdatesModal");
   // Change JAR must actually list versions (papermc v3 regression guard)
   await page.click(".sc-menu-btn"); await page.waitForTimeout(250);
   await page.locator(`#sc-menu-${sid} button[role="menuitem"]`, { hasText: "Change JAR" }).first().click();
