@@ -1,9 +1,18 @@
+# ── Stage 1: production node_modules. The compilers needed for native
+# modules (better-sqlite3) stay in this stage and never ship.
+FROM node:22-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache python3 make g++
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
+# ── Stage 2: runtime
 FROM node:22-alpine
 WORKDIR /app
 
-# Build deps for native modules + curl/sqlite for runtime
-RUN apk add --no-cache python3 make g++ sqlite curl ca-certificates bash glibc-compat 2>/dev/null \
- || apk add --no-cache python3 make g++ sqlite curl ca-certificates bash
+# Runtime tools only (curl/bash for the install steps below and scripts,
+# sqlite CLI for manual DB work).
+RUN apk add --no-cache sqlite curl ca-certificates bash
 
 # Install Eclipse Temurin JDK 25 (Adoptium). Alpine packages lag behind Mojang's
 # class file version requirements (1.21.6+ ships class version 69 = Java 25).
@@ -58,9 +67,7 @@ RUN ARCH=$(uname -m); \
     chmod +x /usr/local/bin/playit-cli /usr/local/bin/playit-agent && \
     /usr/local/bin/playit-cli version 2>&1 | head -1 || true
 
-COPY package*.json ./
-RUN npm install --omit=dev --no-audit --no-fund
-
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p data backups uploads jars
 
