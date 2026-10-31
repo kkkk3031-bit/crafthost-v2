@@ -1276,7 +1276,9 @@ async function startServer(containerId, server) {
       /\[[^\]]+\]:\s+(\w+)\[\/([0-9a-fA-F.:]+):\d+\]\s+logged in with entity id/,
     );
     if (ipLine) {
-      if (!state._pendingIp) state._pendingIp = {};
+      // Reset when it grows: a player kicked during login never gets a
+      // "joined the game" line, so their entry would otherwise stay forever.
+      if (!state._pendingIp || Object.keys(state._pendingIp).length > 100) state._pendingIp = {};
       state._pendingIp[ipLine[1]] = ipLine[2];
     }
     const join = stamped.match(/\[[^\]]+\]:\s+(\w+) joined the game\s*$/i);
@@ -1331,10 +1333,14 @@ async function startServer(containerId, server) {
       ) {
         const emoji = ev.type === "join" ? "🟢" : "🔴";
         const verb = ev.type === "join" ? "joined" : "left";
-        const ipStr = ev.ip ? ` (\`${ev.ip}\`)` : "";
+        // No player IP: everyone in the Discord channel would see it.
+        // Markdown escaped and mentions disabled, so a server name can't
+        // ping @everyone or break the formatting.
+        const md = (t) => String(t).replace(/[\\*_~`|>@#:[\]()]/g, "\\$&");
         const body = JSON.stringify({
-          content: `${emoji} **${ev.player}**${ipStr} ${verb} **${server.name}**`,
+          content: `${emoji} **${md(ev.player)}** ${verb} **${md(server.name)}**`,
           username: "CraftHost",
+          allowed_mentions: { parse: [] },
         });
         fetch(server.discord_webhook, {
           method: "POST",
@@ -1922,7 +1928,9 @@ async function sendRcon(server, command) {
     return "[jvm] server is not running";
   }
   // Cheapest reliable path: write to stdin. The Paper console accepts commands without leading slash.
-  const cmd = command.startsWith("/") ? command.slice(1) : command;
+  // One call = one console command: a newline would start a second one.
+  const flat = String(command).replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
+  const cmd = flat.startsWith("/") ? flat.slice(1) : flat;
   try {
     state.proc.stdin.write(cmd + "\n");
     // Capture lines emitted in the next 600ms as the "response"

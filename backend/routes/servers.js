@@ -44,8 +44,30 @@ const router = express.Router();
 // Listed BEFORE authMiddleware so they don't get gated.
 
 // GET /api/servers/public — running public servers with live SLP data
+// Unauthenticated, and each entry costs a status ping: cache the answer
+// briefly (it holds only public fields) so the endpoint can't be used to
+// make the backend ping every public server on every request.
+let publicCache = { at: 0, body: null, pending: null };
+const PUBLIC_CACHE_MS = 10_000;
+
 router.get("/public", async (req, res) => {
   try {
+    if (publicCache.body && Date.now() - publicCache.at < PUBLIC_CACHE_MS)
+      return res.json(publicCache.body);
+    // Concurrent misses share one build instead of each pinging everything.
+    if (!publicCache.pending) {
+      publicCache.pending = buildPublicList().finally(() => (publicCache.pending = null));
+    }
+    const body = await publicCache.pending;
+    publicCache = { ...publicCache, at: Date.now(), body };
+    res.json(body);
+  } catch (err) {
+    console.warn("[public] list failed:", err.message);
+    res.status(500).json({ error: "Failed to list public servers" });
+  }
+});
+
+async function buildPublicList() {
     const rows = db
       .prepare(
         `
@@ -62,11 +84,9 @@ router.get("/public", async (req, res) => {
       )
       .all();
     const out = [];
-    for (const s of rows) {
-      let stats = null;
-      try {
-        stats = await dc.getStats(s);
-      } catch {}
+    const allStats = await Promise.all(rows.map((s) => dc.getStats(s).catch(() => null)));
+    rows.forEach((s, i) => {
+      const stats = allStats[i];
       if (stats?.online) {
         out.push({
           id: s.id,
@@ -81,8 +101,8 @@ router.get("/public", async (req, res) => {
           mc_version: stats.mc_version,
         });
       }
-    }
-    res.json({
+    });
+    return {
       servers: out,
       public_host: publicHost(),
       public_mc_port: parseInt(
@@ -90,11 +110,8 @@ router.get("/public", async (req, res) => {
         10,
       ),
       total: out.length,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to list public servers" });
-  }
-});
+    };
+}
 
 router.use(authMiddleware);
 
@@ -2635,7 +2652,8 @@ router.get("/:id/launcher.bat", (req, res) => {
   const safeName =
     (s.name || "")
       .replace(/[^\x20-\x7E]/g, "")
-      .replace(/["%^&<>|`]/g, "")
+      // ! expands under enabledelayedexpansion; ( ) can close an if-block.
+      .replace(/["%^&<>|`!()]/g, "")
       .trim() || "server";
   const fileSlug =
     safeName
