@@ -4,16 +4,8 @@ const router = express.Router();
 
 const UA = "CraftHost/1.0 (crafthost.up.railway.app)";
 const TTL = 60 * 60 * 1000;
-const cache = Object.create(null); // key → { ts, data }
-
-function cached(key, fn) {
-  const hit = cache[key];
-  if (hit && Date.now() - hit.ts < TTL) return Promise.resolve(hit.data);
-  return fn().then((data) => {
-    cache[key] = { ts: Date.now(), data };
-    return data;
-  });
-}
+// Shared helper: in-flight dedup + stale value when the upstream is down.
+const cached = require("../lib/ttl-cache").createTtlCache(TTL);
 
 function clampLimit(req, def = 30, max = 200) {
   const n = parseInt(req.query.limit || def, 10);

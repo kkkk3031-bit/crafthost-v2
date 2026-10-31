@@ -18,15 +18,9 @@ const router = express.Router();
 
 const UA = "CraftHost/1.0 (crafthost.up.railway.app)";
 const TTL = 60 * 60 * 1000;
-const cache = Object.create(null); // key → { ts, data }
 
-async function cached(key, fn) {
-  const hit = cache[key];
-  if (hit && Date.now() - hit.ts < TTL) return hit.data;
-  const data = await fn();
-  cache[key] = { ts: Date.now(), data };
-  return data;
-}
+// Shared helper: in-flight dedup + stale value when the upstream is down.
+const cached = require("../lib/ttl-cache").createTtlCache(TTL);
 
 const RESOLVERS = {
   paper: jvm.paperJarUrl,

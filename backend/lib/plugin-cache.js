@@ -42,6 +42,18 @@ const STARTER_PLUGIN_IDS = [
 // the most popular wizard picks. Cache cost: 8 plugins × 4 versions ≈ 180 MB.
 const PREWARM_MC_VERSIONS = ["1.20.1", "1.21.1", "26.1.2", "26.2"];
 
+// A JAR in this cache is copied into every new server, so it must be the
+// exact file Modrinth published (hash) and never a half-written one (atomic).
+function sha512Ok(buf, sha512) {
+  if (!sha512) return true;
+  return require("crypto").createHash("sha512").update(buf).digest("hex") === sha512;
+}
+async function writeAtomic(dest, buf) {
+  const tmp = `${dest}.tmp-${process.pid}-${Date.now()}`;
+  await fsp.writeFile(tmp, buf);
+  await fsp.rename(tmp, dest);
+}
+
 function safeKey(s) {
   return String(s).replace(/[^a-zA-Z0-9._-]/g, "_");
 }
@@ -66,7 +78,9 @@ function loadIndex() {
 
 function saveIndex(idx) {
   try {
-    fs.writeFileSync(INDEX_FILE, JSON.stringify(idx, null, 2));
+    const tmp = `${INDEX_FILE}.tmp-${process.pid}`;
+    fs.writeFileSync(tmp, JSON.stringify(idx, null, 2));
+    fs.renameSync(tmp, INDEX_FILE);
   } catch {}
 }
 
@@ -242,8 +256,9 @@ async function downloadOne(projectId, mcVersion, idx) {
   });
   if (!dl.ok) throw new Error(`HTTP ${dl.status}`);
   const buf = Buffer.from(await dl.arrayBuffer());
+  if (!sha512Ok(buf, meta.sha512)) throw new Error("sha512 mismatch, not cached");
   await fsp.mkdir(CACHE_DIR, { recursive: true });
-  await fsp.writeFile(cachePath(projectId, mcVersion), buf);
+  await writeAtomic(cachePath(projectId, mcVersion), buf);
   idx[indexKey(projectId, mcVersion)] = {
     project_id: projectId,
     mc_version: mcVersion || "any",
@@ -445,7 +460,8 @@ async function writeIntoCache(
   try {
     await fsp.mkdir(CACHE_DIR, { recursive: true });
   } catch {}
-  await fsp.writeFile(cachePath(projectId, mcVersion), buf);
+  if (!sha512Ok(buf, versionMeta.sha512)) throw new Error("sha512 mismatch, not cached");
+  await writeAtomic(cachePath(projectId, mcVersion), buf);
   const idx = loadIndex();
   idx[indexKey(projectId, mcVersion)] = {
     project_id: projectId,
@@ -502,5 +518,6 @@ module.exports = {
   copyFromCache,
   writeIntoCache,
   resolveLatestVersion,
+  sha512Ok,
   listCache,
 };

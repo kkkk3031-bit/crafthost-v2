@@ -1006,6 +1006,10 @@ async function seedDefaultPlugins(userId, serverId, projectIds, mcVersion) {
         continue;
       }
       const buf = Buffer.from(await dl.arrayBuffer());
+      if (!pluginCache.sha512Ok(buf, meta.sha512)) {
+        console.warn(`[seed] ${pid}: sha512 mismatch, skipped`);
+        continue;
+      }
       const safe = String(meta.filename).replace(/[^a-zA-Z0-9._-]/g, "_");
       await fsp.writeFile(path.join(pluginsDir, safe), buf);
       try {
