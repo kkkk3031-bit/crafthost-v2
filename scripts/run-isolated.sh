@@ -15,7 +15,7 @@ cd "$ROOT"
 export PORT="${PORT:-4098}" NODE_ENV=test JWT_SECRET="${JWT_SECRET:-isolated-test-secret}"
 export AUTO_STARTER="${AUTO_STARTER:-0}" PREWARM=0 AUTO_SMOKE=0
 mkdir -p "$ROOT/data/.jar-cache"
-D="$(mktemp -d "$ROOT/data/.smoke-XXXX")"
+D="$(mktemp -d "$ROOT/data/.smoke-XXXX")" || { echo "✗ cannot create isolated data dir"; exit 1; }
 mkdir -p "$D/servers"
 ln -s "$ROOT/data/.jar-cache" "$D/.jar-cache"
 export DATA_DIR="$D/servers" BACKUP_DIR="$D/backups" JAR_DIR="$D/jars"

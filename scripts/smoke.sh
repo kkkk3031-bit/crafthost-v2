@@ -15,8 +15,11 @@ export DATABASE_PATH="$(mktemp -u /tmp/crafthost-smoke-XXXX.db)"
 # instance (an interrupted run used to leave its servers next to real ones).
 # It sits under data/ (same filesystem: JARs are hardlinked from the cache) and
 # shares the real .jar-cache (DATA_DIR/../.jar-cache) so nothing re-downloads.
-SMOKE_DATA="$(mktemp -d "$ROOT/data/.smoke-XXXX")"
-mkdir -p "$ROOT/data/.jar-cache" "$SMOKE_DATA/servers"
+# data/ must exist first: in a fresh checkout (CI) mktemp failed, SMOKE_DATA
+# came out empty and the backend tried to create /servers.
+mkdir -p "$ROOT/data/.jar-cache"
+SMOKE_DATA="$(mktemp -d "$ROOT/data/.smoke-XXXX")" || { echo "✗ cannot create smoke data dir"; exit 1; }
+mkdir -p "$SMOKE_DATA/servers"
 ln -s "$ROOT/data/.jar-cache" "$SMOKE_DATA/.jar-cache"
 export DATA_DIR="$SMOKE_DATA/servers"
 export AUTO_STARTER="${AUTO_STARTER:-1}"
