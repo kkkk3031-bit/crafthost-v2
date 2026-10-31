@@ -7,6 +7,10 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # Nightly as well: on this account push events have never started a run,
+  # so a schedule keeps main tested without anyone remembering to trigger it.
+  schedule:
+    - cron: "17 3 * * *"
 
 jobs:
   test:
