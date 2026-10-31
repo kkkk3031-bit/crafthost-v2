@@ -40,7 +40,7 @@ const STARTER_PLUGIN_IDS = [
 
 // MC versions worth prewarming (one cache slot per plugin × version). Mirrors
 // the most popular wizard picks. Cache cost: 8 plugins × 4 versions ≈ 180 MB.
-const PREWARM_MC_VERSIONS = ["1.20.1", "1.21.1", "26.1.2", "26.2"];
+const PREWARM_MC_VERSIONS = ["1.20.1", "1.21.1", "26.1.2", "26.2", "26.3"];
 
 // A JAR in this cache is copied into every new server, so it must be the
 // exact file Modrinth published (hash) and never a half-written one (atomic).

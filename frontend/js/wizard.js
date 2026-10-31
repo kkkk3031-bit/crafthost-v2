@@ -45,7 +45,9 @@ const SERVER_TYPES = [
 ];
 
 const MC_VERSIONS = [
-  { id: "26.1.2", name: "26.1.2", date: "2026-05-15", latest: true },
+  { id: "26.3", name: "26.3", date: "2026-09-15", latest: true },
+  { id: "26.2", name: "26.2", date: "2026-06-16" },
+  { id: "26.1.2", name: "26.1.2", date: "2026-05-15" },
   { id: "1.21.11", name: "1.21.11", date: "2026-05-22", stable: true },
   { id: "1.21.8", name: "1.21.8", date: "2025-09-10", stable: true },
   { id: "1.21.5", name: "1.21.5", date: "2025-03-20" },
