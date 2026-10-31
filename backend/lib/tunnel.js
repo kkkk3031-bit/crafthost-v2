@@ -16,12 +16,18 @@ const STARTUP_TIMEOUT_MS = 15_000;
 // serverId → { proc, assignedPort, host }
 const tunnels = new Map();
 
+// Cached: the probe is a synchronous spawn and callers ask on hot paths.
+let availCache = { at: 0, ok: false };
 function isAvailable() {
   if (process.env.DISABLE_TUNNEL === '1') return false;
+  if (Date.now() - availCache.at < 60_000) return availCache.ok;
+  let ok = false;
   try {
     execFileSync(BORE_BIN, ['--version'], { stdio: 'ignore', timeout: 3000 });
-    return true;
-  } catch { return false; }
+    ok = true;
+  } catch {}
+  availCache = { at: Date.now(), ok };
+  return ok;
 }
 
 // Spawn a bore process forwarding the given local port to TUNNEL_HOST. Resolves

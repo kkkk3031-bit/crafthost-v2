@@ -315,15 +315,20 @@ async function ensureBedrockTunnelForServer(secret, serverId, localPort) {
 // serverId → { code, url, started, exchangeProc }
 const claims = new Map();
 
+// Probing spawns two processes synchronously (blocking the event loop), and
+// this is asked on every /api/servers poll — so the answer is cached.
+let availCache = { at: 0, ok: false };
 function isAvailable() {
   if (process.env.DISABLE_PLAYIT === "1") return false;
+  if (Date.now() - availCache.at < 60_000) return availCache.ok;
+  let ok = false;
   try {
     execFileSync(PLAYIT_CLI, ["version"], { stdio: "ignore", timeout: 4000 });
     execFileSync(PLAYIT_AGENT, ["--help"], { stdio: "ignore", timeout: 4000 });
-    return true;
-  } catch {
-    return false;
-  }
+    ok = true;
+  } catch {}
+  availCache = { at: Date.now(), ok };
+  return ok;
 }
 
 // ── CLAIM PHASE ──────────────────────────────────────────────────────────────

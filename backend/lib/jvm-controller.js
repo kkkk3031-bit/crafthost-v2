@@ -705,13 +705,10 @@ async function ensureJar(server) {
   // NeoForge ships an installer JAR — running it generates the actual server
   // launcher. After install, swap server.jar to point at the launcher.
   if (info.installer && t === "neoforge") {
-    const { execFileSync } = require("child_process");
     try {
-      execFileSync(JAVA_BIN, ["-jar", jarPath, "--installServer"], {
-        cwd: dir,
-        stdio: "inherit",
-        timeout: 180_000,
-      });
+      // Async: the installer runs for minutes, and execFileSync used to
+      // freeze the whole panel (every user's API and console) meanwhile.
+      await runInstaller(JAVA_BIN, ["-jar", jarPath, "--installServer"], dir, 180_000);
       // Older NeoForge generated a neoforge-*.jar launcher next to the
       // installer — symlink server.jar to it when present. Modern NeoForge
       // (26.x) generates only run.sh + libraries/.../unix_args.txt; startServer
@@ -734,6 +731,24 @@ async function ensureJar(server) {
   }
 
   return jarPath;
+}
+
+// Run a child process to completion without blocking the event loop. Output
+// goes to the backend log (it can be megabytes, so it is not buffered).
+function runInstaller(bin, args, cwd, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { cwd, stdio: ["ignore", "inherit", "inherit"] });
+    const timer = setTimeout(() => {
+      proc.kill("SIGKILL");
+      reject(new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
+    proc.once("error", (err) => { clearTimeout(timer); reject(err); });
+    proc.once("exit", (code, sig) => {
+      clearTimeout(timer);
+      if (code === 0) resolve();
+      else reject(new Error(`installer exited with ${sig || `code ${code}`}`));
+    });
+  });
 }
 
 // Locate NeoForge's generated server-launch args file (modern install layout):
