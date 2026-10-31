@@ -23,6 +23,8 @@ mkdir -p "$SMOKE_DATA/servers"
 ln -s "$ROOT/data/.jar-cache" "$SMOKE_DATA/.jar-cache"
 export DATA_DIR="$SMOKE_DATA/servers"
 export AUTO_STARTER="${AUTO_STARTER:-1}"
+# Same controller as production, even on a machine that has Docker (CI).
+export CONTROLLER_BACKEND="${CONTROLLER_BACKEND:-jvm}"
 
 echo "▶ booting server on :$PORT (db: $DATABASE_PATH)"
 node backend/db/init.js >/dev/null 2>&1

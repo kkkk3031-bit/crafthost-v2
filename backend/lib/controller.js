@@ -16,7 +16,11 @@ const CACHE_TTL = 30_000;
 async function pickBackend() {
   if (_backendCache && Date.now() - _cacheTs < CACHE_TTL) return _backendCache;
   let pick = "stub";
-  if (await docker.isDockerAvailable()) pick = "docker";
+  // CONTROLLER_BACKEND=docker|jvm|stub pins the choice (tests pin jvm: a CI
+  // runner with Docker would otherwise pick docker and pull images).
+  const forced = String(process.env.CONTROLLER_BACKEND || "").toLowerCase();
+  if (["docker", "jvm", "stub"].includes(forced)) pick = forced;
+  else if (await docker.isDockerAvailable()) pick = "docker";
   else if (jvm.isAvailable()) pick = "jvm";
   _backendCache = pick;
   _cacheTs = Date.now();
