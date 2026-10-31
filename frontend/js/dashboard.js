@@ -277,7 +277,7 @@ function renderServer(s) {
           <div class="sc-type">${escapeHtml(typeLabel(s))} · ${publicBadge}</div>
         </div>
       </div>
-      <div class="sc-status sc-status-${statusKey}" title="Server is ${statusLabel.toLowerCase()}">
+      <div class="sc-status sc-status-${statusKey}" title="${escapeHtml(window.tf("ui_server_is", { status: statusLabel }))}">
         <span class="sc-status-dot"></span>${escapeHtml(statusLabel)}
       </div>
     </div>

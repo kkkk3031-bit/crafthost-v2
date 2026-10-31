@@ -585,6 +585,7 @@ window.I18N = {
     ui_enabling: "⏳ Enabling…",
     ui_live_load_failed: "Could not load live servers ({err}).",
     ui_copied: "✓ Copied!",
+    ui_server_is: "Server is {status}",
     console_clear: "Clear",
     mp_installed_title: "Installed on this server",
     mp_installed_empty: "Nothing installed yet",
@@ -1175,6 +1176,7 @@ window.I18N = {
     ui_enabling: "⏳ جارٍ التفعيل…",
     ui_live_load_failed: "تعذّر تحميل السيرفرات المباشرة ({err}).",
     ui_copied: "✓ تم النسخ!",
+    ui_server_is: "حالة السيرفر: {status}",
     console_clear: "مسح",
     mp_installed_title: "المثبّت على هذا السيرفر",
     mp_installed_empty: "لا يوجد شيء مثبّت بعد",
@@ -1216,6 +1218,57 @@ window.tOr = (key, fallback) => (window.I18N.en[key] ? window.t(key) : fallback)
 // Modals, cards and menus are inserted after applyLang ran, so their
 // data-i18n nodes would stay English. Translate anything with data-i18n as it
 // is added. Only text nodes change, which this observer ignores (no loops).
+// Tooltips (title="…") are English in the markup and templates; in Arabic
+// mode they are swapped from this table. The English original is kept in
+// data-title-en so switching back restores it. Icon-only buttons rely on
+// these as their accessible name, so they matter beyond hover text.
+window.TITLE_AR = {
+  "Aggregate health of all your servers": "الحالة العامة لجميع سيرفراتك",
+  "Bedrock Edition (mobile / console) · click to copy": "إصدار Bedrock (جوال / كونسول) · اضغط للنسخ",
+  "Bedrock cross-play is on — waiting for tunnel address": "اللعب المشترك مع Bedrock مفعّل — بانتظار عنوان النفق",
+  "Click for actions": "اضغط للإجراءات",
+  "Delete": "حذف",
+  "Delete backup": "حذف النسخة الاحتياطية",
+  "Disconnected": "غير متصل",
+  "Download": "تنزيل",
+  "Download as .zip": "تنزيل كملف zip",
+  "Download log": "تنزيل السجل",
+  "Download zip": "تنزيل zip",
+  "Edit": "تعديل",
+  "Enable Bedrock cross-play — mobile / Xbox / Switch / PS players": "تفعيل اللعب المشترك مع Bedrock — لاعبو الجوال و Xbox و Switch و PS",
+  "Internal only — promote to play": "داخلي فقط — اجعله عاماً للعب",
+  "Java Edition · click to copy": "إصدار Java · اضغط للنسخ",
+  "More actions": "إجراءات أخرى",
+  "New File": "ملف جديد",
+  "New Folder": "مجلد جديد",
+  "Open console": "فتح الكونسول",
+  "Reachable from Minecraft clients": "متاح للاعبي ماين كرافت",
+  "Refresh": "تحديث",
+  "Restart": "إعادة التشغيل",
+  "Restart server": "إعادة تشغيل السيرفر",
+  "Restore — replaces current world": "استعادة — تستبدل العالم الحالي",
+  "Sign out": "تسجيل الخروج",
+  "Start": "تشغيل",
+  "Start the server to get its join address": "شغّل السيرفر للحصول على عنوان الدخول",
+  "Stop": "إيقاف",
+  "TPS over last ~60s": "TPS خلال آخر ~60 ثانية",
+  "Toggle auto-scroll": "تبديل التمرير التلقائي",
+  "Too large or binary": "كبير جداً أو ملف ثنائي",
+  "Up one level": "مستوى للأعلى",
+  "Upload": "رفع"
+};
+window.translateTitles = (root, lang) => {
+  if (!root || !root.querySelectorAll) return;
+  lang = lang || localStorage.getItem("crafthost.lang") || "en";
+  const els = root.matches && root.matches("[title]") ? [root, ...root.querySelectorAll("[title]")] : root.querySelectorAll("[title]");
+  for (const el of els) {
+    const en = el.dataset.titleEn || el.getAttribute("title");
+    const ar = window.TITLE_AR[en];
+    if (!ar) continue;
+    el.dataset.titleEn = en;
+    el.setAttribute("title", lang === "ar" ? ar : en);
+  }
+};
 (function translateInsertedNodes() {
   if (typeof MutationObserver === "undefined" || typeof document === "undefined") return;
   const apply = (root) => {
@@ -1226,6 +1279,7 @@ window.tOr = (key, fallback) => (window.I18N.en[key] ? window.t(key) : fallback)
       const v = dict[el.getAttribute("data-i18n")];
       if (v && el.textContent !== v) el.textContent = v;
     }
+    window.translateTitles(root);
   };
   new MutationObserver((muts) => {
     for (const m of muts) for (const n of m.addedNodes) if (n.nodeType === 1) apply(n);
@@ -1243,6 +1297,7 @@ window.applyLang = (lang) => {
     if (k && window.I18N[lang] && window.I18N[lang][k])
       el.textContent = window.I18N[lang][k];
   });
+  window.translateTitles(document, lang);
   document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
     const k = el.getAttribute("data-i18n-placeholder");
     if (k && window.I18N[lang] && window.I18N[lang][k])
@@ -1394,7 +1449,7 @@ window.applyLang = (lang) => {
       a.href = "/";
       a.className = "ch-home-btn";
       a.setAttribute("aria-label", "CraftHost — Home");
-      a.title = "Home";
+      a.title = window.t("home");
       // Match the index brand: [C] CraftHost. This way every page has the same
       // recognizable brand element users can click to return to the homepage.
       a.innerHTML =
