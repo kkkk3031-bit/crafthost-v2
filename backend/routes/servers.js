@@ -2250,83 +2250,43 @@ router.post(
   "/:id/import-world",
   worldUpload.single("world"),
   async (req, res) => {
+    const fsp = require("fs/promises");
+    const path = require("path");
+    const { DATA_DIR } = require("../lib/paths");
     const s = getOwnedServer(req, res);
-    if (!s) return;
+    const upload = req.file?.path;
+    const dropUpload = () => upload && fsp.unlink(upload).catch(() => {});
+    if (!s) return dropUpload();
     if (!req.file)
       return res.status(400).json({ error: 'No "world" file in upload' });
     if (oplock.has(s.id)) {
-      try { require("fs/promises").unlink(req.file.path).catch(() => {}); } catch {}
+      dropUpload();
       return res.status(409).json(oplock.busyPayload(s.id));
     }
     oplock.acquire(s.id, "import");
 
-    const fsp = require("fs/promises");
-    const fs = require("fs");
-    const path = require("path");
-    const AdmZip = require("adm-zip");
-    const DATA_DIR =
-      require("../lib/paths").DATA_DIR;
+    const wi = require("../lib/world-import");
     const root = path.join(DATA_DIR, s.id);
-
-    async function rmTree(p) {
-      try {
-        await fsp.rm(p, { recursive: true, force: true });
-      } catch {}
-    }
-
-    // Zip-Slip guard: a crafted entry name (world/../../../etc) resolves a dest
-    // outside the server dir. Reject anything that escapes root before writing.
-    const rootResolved = path.resolve(root);
-    function destUnderRoot(name) {
-      const dest = path.resolve(root, name);
-      if (dest !== rootResolved && !dest.startsWith(rootResolved + path.sep))
-        throw new Error(`unsafe path in archive: ${name}`);
-      return dest;
-    }
-
+    const staging = path.join(root, `.import-staging-${Date.now()}`);
+    let stopped = false;
+    let wasActive = false;
     try {
-      // 1) Stop the server (no-op if already stopped).
+      // 1) Validate + unpack while the server keeps running: a bad zip must
+      // not cost the owner any downtime or touch the live world.
+      const { map, restored } = await wi.plan(upload);
+      await wi.extract(upload, map, staging);
+
+      // 2) Stop, snapshot the current world (an import is irreversible
+      // otherwise), then swap the staged world in.
+      wasActive = ["starting", "online", "running"].includes(
+        String(db.prepare("SELECT status FROM servers WHERE id = ?").get(s.id)?.status || "").toLowerCase(),
+      );
       try {
         await dc.stopServer(s);
       } catch (err) {
         console.warn("[import-world] stop failed:", err.message);
       }
-
-      // 2) Crack the zip and figure out its layout.
-      const zip = new AdmZip(req.file.path);
-      const entries = zip.getEntries();
-      if (!entries.length) return res.status(400).json({ error: "Empty zip" });
-
-      // Detect layout: check if any entry path starts with "world/" or "world_nether/" etc.
-      const dimDirs = ["world", "world_nether", "world_the_end"];
-      const detectedDims = new Set();
-      for (const e of entries) {
-        const top = e.entryName.replace(/^\/+/, "").split("/")[0];
-        if (dimDirs.includes(top)) detectedDims.add(top);
-      }
-      const isWrappedLayout = detectedDims.size > 0;
-      // Heuristic for the "internals at root" layout: see if `level.dat` is at the
-      // top level or under a single dir.
-      let internalsRootPrefix = null;
-      if (!isWrappedLayout) {
-        const levelDatEntry = entries.find((e) =>
-          /(^|\/)level\.dat$/.test(e.entryName),
-        );
-        if (levelDatEntry) {
-          internalsRootPrefix = path.posix
-            .dirname("/" + levelDatEntry.entryName)
-            .replace(/^\//, "");
-          // Empty prefix means level.dat is at the very root.
-        } else {
-          return res.status(400).json({
-            error:
-              "Zip does not look like a Minecraft world (no level.dat found; expected world/level.dat or level.dat at root)",
-          });
-        }
-      }
-
-      // 3) Snapshot the current world before wiping it — an imported zip is
-      // irreversible otherwise.
+      stopped = true;
       try {
         await bk.createBackup(s.id, {
           retention: parseInt(process.env.BACKUPS_PER_SERVER || "10", 10),
@@ -2335,50 +2295,15 @@ router.post(
       } catch (err) {
         console.warn("[import-world] auto-backup failed:", err.message);
       }
+      await wi.swapIn(root, staging);
+      await fsp.rm(staging, { recursive: true, force: true }).catch(() => {});
 
-      // 4) Wipe existing world dirs so we start clean.
-      for (const d of dimDirs) await rmTree(path.join(root, d));
-
-      // 4) Extract.
-      const restored = {};
-      if (isWrappedLayout) {
-        // Extract only world/, world_nether/, world_the_end/ entries to root.
-        for (const e of entries) {
-          if (e.isDirectory) continue;
-          const name = e.entryName.replace(/^\/+/, "");
-          const top = name.split("/")[0];
-          if (!dimDirs.includes(top)) continue;
-          const dest = destUnderRoot(name);
-          await fsp.mkdir(path.dirname(dest), { recursive: true });
-          fs.writeFileSync(dest, e.getData());
-          restored[top] = (restored[top] || 0) + 1;
-        }
-      } else {
-        // Internals layout — extract into a fresh world/ dir.
-        const prefix = internalsRootPrefix
-          ? internalsRootPrefix.replace(/\/+$/, "") + "/"
-          : "";
-        for (const e of entries) {
-          if (e.isDirectory) continue;
-          const name = e.entryName.replace(/^\/+/, "");
-          if (prefix && !name.startsWith(prefix)) continue;
-          const rel = prefix ? name.slice(prefix.length) : name;
-          if (!rel) continue;
-          const dest = destUnderRoot(path.join("world", rel));
-          await fsp.mkdir(path.dirname(dest), { recursive: true });
-          fs.writeFileSync(dest, e.getData());
-        }
-        restored.world = entries.length;
-      }
-
-      // 5) Cleanup uploaded temp + restart.
-      try {
-        await fsp.unlink(req.file.path);
-      } catch {}
       audit(req.user.id, "server.world_import", s.id, req.ip, {
         size: req.file.size,
         restored,
       });
+      // 3) Boot the imported world.
+      stopped = false;
       try {
         const updated = db
           .prepare(
@@ -2386,26 +2311,26 @@ router.post(
           )
           .get(s.id);
         const r = await dc.startServer(updated);
-        db.prepare("UPDATE servers SET status = ? WHERE id = ?").run(
-          "starting",
-          s.id,
-        );
+        db.prepare("UPDATE servers SET status = ? WHERE id = ?").run("starting", s.id);
         if (r?.containerId && r.containerId !== s.container_id) {
-          db.prepare("UPDATE servers SET container_id = ? WHERE id = ?").run(
-            r.containerId,
-            s.id,
-          );
+          db.prepare("UPDATE servers SET container_id = ? WHERE id = ?").run(r.containerId, s.id);
         }
       } catch (err) {
         console.warn("[import-world] restart failed:", err.message);
       }
       res.json({ ok: true, restored, size: req.file.size });
     } catch (err) {
-      try {
-        await fsp.unlink(req.file.path);
-      } catch {}
-      res.status(500).json({ error: err.message || "World import failed" });
+      console.warn(`[import-world] ${s.id}: ${err.message}`);
+      res.status(err.status || 500).json({ error: err.message || "World import failed" });
     } finally {
+      // A failure after the stop must not leave the owner's server down.
+      if (stopped && wasActive) {
+        dc.startServer(s)
+          .then(() => db.prepare("UPDATE servers SET status = ? WHERE id = ?").run("starting", s.id))
+          .catch((err) => console.warn("[import-world] restart after failure:", err.message));
+      }
+      await fsp.rm(staging, { recursive: true, force: true }).catch(() => {});
+      dropUpload();
       oplock.release(s.id);
     }
   },

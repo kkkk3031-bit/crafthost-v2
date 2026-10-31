@@ -261,4 +261,5 @@ module.exports = {
   pathForDownload,
   totalBackupBytes,
   SNAPSHOT_TARGETS,
+  eachEntry,
 };
