@@ -295,6 +295,8 @@
   .term { font-size: 10.5px !important; padding: 7px 9px !important; }
   .tps-gauge .v { font-size: 20px !important; }
 }
+  /* Typed commands are code (LTR); the Arabic placeholder keeps the page direction. */
+  #cmdInput:not(:placeholder-shown) { direction: ltr; text-align: left; }
 </style>
 </head>
 <body>
@@ -336,16 +338,17 @@
         <!-- Terminal -->
         <div class="terminal-panel">
           <div class="term-head">
-            <div><strong data-i18n="nav_console">Console</strong> <span class="text-muted" id="termHost" style="margin-left:6px;font-family:var(--font-mono);font-size:12px;"></span></div>
+            <div><strong data-i18n="nav_console">Console</strong> <span class="text-muted" id="termHost" dir="ltr" style="unicode-bidi:isolate;margin-left:6px;font-family:var(--font-mono);font-size:12px;"></span></div>
             <div style="display:flex;gap:6px;">
               <button class="btn btn-ghost btn-sm" id="autoscrollBtn" title="Toggle auto-scroll" data-i18n="console_auto">⤓ Auto</button>
-              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('term').innerHTML=''">Clear</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('term').innerHTML=''" data-i18n="console_clear">Clear</button>
               <button class="btn btn-ghost btn-sm" id="dlLogBtn" title="Download log">↓</button>
             </div>
           </div>
-          <div class="term" id="term"></div>
+          <!-- Logs and commands are code: always left-to-right, even in Arabic. -->
+          <div class="term" id="term" dir="ltr"></div>
           <div class="term-input-wrap">
-            <div class="term-quick">
+            <div class="term-quick" dir="ltr">
               <button onclick="runCmd('/list')">/list</button>
               <button onclick="runCmd('/save-all')">/save-all</button>
               <button onclick="runCmd('/weather clear')">/weather clear</button>
