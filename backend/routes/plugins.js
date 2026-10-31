@@ -6,8 +6,6 @@ const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const crypto = require('crypto');
-const { pipeline } = require('stream/promises');
-const { Readable } = require('stream');
 const db = require('../db');
 const { authMiddleware } = require('../lib/auth');
 
@@ -18,6 +16,67 @@ const DATA_DIR = require("../lib/paths").DATA_DIR;
 const MODRINTH = process.env.MODRINTH_API || 'https://api.modrinth.com/v2';
 const UA = 'CraftHost/1.0 (crafthost.up.railway.app)';
 const MAX_JAR_BYTES = 250 * 1024 * 1024; // 250 MB
+const MAX_PACK_BYTES = 800 * 1024 * 1024;
+const MAX_PACK_TOTAL = 1024 * 1024 * 1024; // all modpack content, 1 GB
+const FETCH_TIMEOUT_MS = 60_000;
+const DOWNLOAD_TIMEOUT_MS = 5 * 60_000;
+
+// Fabric/Forge-family servers load from mods/, Bukkit-family from plugins/.
+// Vanilla loads neither.
+const MOD_LOADERS = new Set(['fabric', 'forge', 'neoforge']);
+function addonDirName(type) {
+  return MOD_LOADERS.has(String(type || '').toLowerCase()) ? 'mods' : 'plugins';
+}
+
+// The .mrpack spec only allows these download hosts. Enforcing it stops a
+// crafted pack from making the backend fetch internal URLs (SSRF).
+const MRPACK_HOSTS = new Set(['cdn.modrinth.com', 'github.com', 'raw.githubusercontent.com', 'gitlab.com']);
+function allowedPackUrl(u) {
+  try {
+    const url = new URL(u);
+    return url.protocol === 'https:' && MRPACK_HOSTS.has(url.hostname);
+  } catch { return false; }
+}
+
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+// Fetch JSON from Modrinth with a timeout. Returns null on a non-2xx.
+async function modrinthJson(pathAndQuery) {
+  const r = await fetch(`${MODRINTH}${pathAndQuery}`, {
+    headers: { 'User-Agent': UA },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!r.ok) return null;
+  return r.json();
+}
+
+// Download into memory, aborting as soon as the body passes maxBytes (instead
+// of buffering a multi-GB response and checking afterwards).
+async function downloadCapped(url, maxBytes) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA },
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+  });
+  if (!r.ok || !r.body) throw new HttpError(502, `Download failed (HTTP ${r.status})`);
+  const declared = parseInt(r.headers.get('content-length') || '0', 10);
+  if (declared > maxBytes) { r.body.cancel().catch(() => {}); throw new HttpError(413, 'File too large'); }
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of r.body) {
+    total += chunk.length;
+    if (total > maxBytes) throw new HttpError(413, 'File too large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks, total);
+}
+
+function hashMatches(buf, hashes) {
+  if (hashes?.sha512) return crypto.createHash('sha512').update(buf).digest('hex') === hashes.sha512;
+  if (hashes?.sha1) return crypto.createHash('sha1').update(buf).digest('hex') === hashes.sha1;
+  return true; // nothing to check against
+}
 
 function ownedServer(req, res) {
   const s = db.prepare('SELECT * FROM servers WHERE id = ? AND user_id = ?')
@@ -26,8 +85,8 @@ function ownedServer(req, res) {
   return s;
 }
 
-function pluginsDir(serverId) {
-  const dir = path.join(DATA_DIR, serverId, 'plugins');
+function pluginsDir(server) {
+  const dir = path.join(DATA_DIR, server.id, addonDirName(server.type));
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -36,14 +95,10 @@ function sanitizeName(name) {
   return String(name).replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^\.+/, '').slice(0, 200);
 }
 
-function sha512Of(buf) {
-  return crypto.createHash('sha512').update(buf).digest('hex');
-}
-
 // GET /api/servers/:id/plugins  — list installed JARs
 router.get('/', async (req, res) => {
   const s = ownedServer(req, res); if (!s) return;
-  const dir = pluginsDir(s.id);
+  const dir = pluginsDir(s);
   try {
     const items = await fsp.readdir(dir, { withFileTypes: true });
     const list = await Promise.all(items.filter(e => e.isFile()).map(async (e) => {
@@ -51,7 +106,7 @@ router.get('/', async (req, res) => {
       return { name: e.name, size: st?.size || 0, mtime: st?.mtimeMs || 0 };
     }));
     list.sort((a, b) => b.mtime - a.mtime);
-    res.json({ plugins: list });
+    res.json({ plugins: list, dir: addonDirName(s.type) });
   } catch { res.json({ plugins: [] }); }
 });
 
@@ -61,20 +116,21 @@ router.post('/install', async (req, res) => {
   const s = ownedServer(req, res); if (!s) return;
   const { version_id, project_id } = req.body || {};
   if (!version_id && !project_id) return res.status(400).json({ error: 'version_id or project_id required' });
+  const loader = (s.type || '').toLowerCase();
+  if (loader === 'vanilla')
+    return res.status(400).json({ error: 'Vanilla servers cannot load plugins or mods. Switch to Paper or Fabric first.' });
 
   try {
     // Resolve to a concrete version
     let version;
     if (version_id) {
-      const r = await fetch(`${MODRINTH}/version/${encodeURIComponent(version_id)}`, { headers: { 'User-Agent': UA } });
-      if (!r.ok) return res.status(502).json({ error: 'Modrinth version lookup failed' });
-      version = await r.json();
+      version = await modrinthJson(`/version/${encodeURIComponent(version_id)}`);
+      if (!version) return res.status(502).json({ error: 'Modrinth version lookup failed' });
     } else {
       // Resolve the newest compatible version. Modrinth filters are strict — a Paper
       // server still happily loads Spigot/Bukkit plugins, and many popular plugins
       // (WorldGuard, Spark) tag themselves only as 'bukkit'. So try progressively
       // wider filters before giving up.
-      const loader = (s.type || '').toLowerCase();
       const gameV  = (s.version && s.version !== 'LATEST') ? s.version : null;
       const FAMILY = {
         paper:    ['paper', 'spigot', 'bukkit'],
@@ -91,10 +147,7 @@ router.post('/install', async (req, res) => {
         const params = new URLSearchParams();
         if (loaders) params.set('loaders', JSON.stringify(loaders));
         if (version) params.set('game_versions', JSON.stringify([version]));
-        const url = `${MODRINTH}/project/${encodeURIComponent(project_id)}/version${params.toString() ? '?' + params : ''}`;
-        const rr = await fetch(url, { headers: { 'User-Agent': UA } });
-        if (!rr.ok) return null;
-        const arr = await rr.json();
+        const arr = await modrinthJson(`/project/${encodeURIComponent(project_id)}/version${params.toString() ? '?' + params : ''}`);
         return Array.isArray(arr) && arr.length ? arr[0] : null;
       }
 
@@ -103,53 +156,32 @@ router.post('/install', async (req, res) => {
       // jar (it would silently install and fail to load at runtime). If the
       // project has no version for the server's loader family, return 404 so
       // the UI can surface a real error.
-      if (loaderList) {
-        version =
-          await tryQuery({ loaders: loaderList, version: gameV }) ||
-          await tryQuery({ loaders: loaderList, version: null  });
-        if (!version) return res.status(404).json({
-          error: `No ${loaderList[0]}-compatible version found for this plugin`,
-        });
-      } else {
-        version =
-          await tryQuery({ loaders: null, version: gameV }) ||
-          await tryQuery({ loaders: null, version: null });
-        if (!version) return res.status(404).json({ error: 'No compatible version found' });
-      }
+      version =
+        await tryQuery({ loaders: loaderList, version: gameV }) ||
+        await tryQuery({ loaders: loaderList, version: null  });
+      if (!version) return res.status(404).json({
+        error: loaderList ? `No ${loaderList[0]}-compatible version found for this project` : 'No compatible version found',
+      });
     }
 
     const file = (version.files || []).find(f => f.primary) || version.files?.[0];
     if (!file?.url) return res.status(404).json({ error: 'No downloadable file in version' });
+    if (!/\.jar$/i.test(file.filename || '')) return res.status(415).json({ error: 'This project does not ship a server JAR' });
 
-    // Stream the JAR with a size cap
-    const dl = await fetch(file.url, { headers: { 'User-Agent': UA } });
-    if (!dl.ok) return res.status(502).json({ error: 'JAR download failed' });
-
-    const contentLength = parseInt(dl.headers.get('content-length') || '0', 10);
-    if (contentLength && contentLength > MAX_JAR_BYTES)
-      return res.status(413).json({ error: 'JAR too large' });
-
-    const buf = Buffer.from(await dl.arrayBuffer());
-    if (buf.length > MAX_JAR_BYTES) return res.status(413).json({ error: 'JAR too large' });
-
-    // Optional integrity check against modrinth-reported sha512
-    if (file.hashes?.sha512) {
-      const got = sha512Of(buf);
-      if (got !== file.hashes.sha512)
-        return res.status(502).json({ error: 'Hash mismatch — refusing to install' });
-    }
+    const buf = await downloadCapped(file.url, MAX_JAR_BYTES);
+    if (!hashMatches(buf, file.hashes))
+      return res.status(502).json({ error: 'Hash mismatch — refusing to install' });
 
     const name = sanitizeName(file.filename || 'plugin.jar');
-    const dest = path.join(pluginsDir(s.id), name);
-    await fsp.writeFile(dest, buf);
+    const dirName = addonDirName(s.type);
+    await fsp.writeFile(path.join(pluginsDir(s), name), buf);
 
-    try {
-      audit(req.user.id, 'plugin.install', s.id, req.ip, { name, version: version.version_number });
-    } catch (err) { console.warn('[plugin.install] audit failed:', err.message); }
-    res.json({ ok: true, name, size: buf.length, version: version.version_number });
+    audit(req.user.id, 'plugin.install', s.id, req.ip, { name, dir: dirName, version: version.version_number });
+    res.json({ ok: true, name, dir: dirName, size: buf.length, version: version.version_number });
   } catch (err) {
-    console.warn(`[plugin.install] ${project_id || version_id}: ${err.stack || err.message}`);
-    res.status(500).json({ error: `Install failed: ${err.message || 'unknown error'}` });
+    console.warn(`[plugin.install] ${project_id || version_id}: ${err.message}`);
+    const status = err.status || (err.name === 'TimeoutError' ? 504 : 500);
+    res.status(status).json({ error: status === 500 ? `Install failed: ${err.message || 'unknown error'}` : err.message });
   }
 });
 
@@ -165,14 +197,12 @@ router.post('/install-modpack', async (req, res) => {
   try {
     let version;
     if (version_id) {
-      const r = await fetch(`${MODRINTH}/version/${encodeURIComponent(version_id)}`, { headers: { 'User-Agent': UA } });
-      if (!r.ok) return res.status(502).json({ error: 'Modrinth version lookup failed' });
-      version = await r.json();
+      version = await modrinthJson(`/version/${encodeURIComponent(version_id)}`);
+      if (!version) return res.status(502).json({ error: 'Modrinth version lookup failed' });
     } else {
       // For modpacks, prefer the newest version; loader/MC filtering is implicit in the modpack itself
-      const r = await fetch(`${MODRINTH}/project/${encodeURIComponent(project_id)}/version`, { headers: { 'User-Agent': UA } });
-      if (!r.ok) return res.status(502).json({ error: 'Modrinth project lookup failed' });
-      const list = await r.json();
+      const list = await modrinthJson(`/project/${encodeURIComponent(project_id)}/version`);
+      if (!list) return res.status(502).json({ error: 'Modrinth project lookup failed' });
       if (!Array.isArray(list) || !list.length) return res.status(404).json({ error: 'No modpack versions available' });
       version = list[0];
     }
@@ -180,11 +210,9 @@ router.post('/install-modpack', async (req, res) => {
     const packFile = (version.files || []).find(f => f.primary) || version.files?.[0];
     if (!packFile?.url) return res.status(404).json({ error: 'No primary file in modpack version' });
 
-    // Download .mrpack
-    const dl = await fetch(packFile.url, { headers: { 'User-Agent': UA } });
-    if (!dl.ok) return res.status(502).json({ error: 'Modpack download failed' });
-    const packBuf = Buffer.from(await dl.arrayBuffer());
-    if (packBuf.length > 800 * 1024 * 1024) return res.status(413).json({ error: 'Modpack too large' });
+    const packBuf = await downloadCapped(packFile.url, MAX_PACK_BYTES);
+    if (!hashMatches(packBuf, packFile.hashes))
+      return res.status(502).json({ error: 'Modpack hash mismatch — refusing to install' });
 
     // Parse modrinth.index.json
     const AdmZip = require('adm-zip');
@@ -199,65 +227,69 @@ router.post('/install-modpack', async (req, res) => {
     catch { return res.status(502).json({ error: 'modrinth.index.json malformed' }); }
 
     const dir = path.join(DATA_DIR, s.id);
-    const modsDir = path.join(dir, 'mods');
-    fs.mkdirSync(modsDir, { recursive: true });
+    fs.mkdirSync(path.join(dir, 'mods'), { recursive: true });
 
-    // Download each file with size guard. Concurrency 4.
-    const files = Array.isArray(index.files) ? index.files : [];
-    const MAX_TOTAL = 1024 * 1024 * 1024; // 1 GB total cap
+    // Resolve a pack-relative path to an absolute one inside the server dir,
+    // or null if it would escape it.
+    const inside = (rel) => {
+      const dest = path.resolve(dir, String(rel || '').replace(/\\/g, '/'));
+      return dest.startsWith(dir + path.sep) ? dest : null;
+    };
+
+    // Client-only files (env.server === 'unsupported': shaders, minimaps, HUD
+    // mods) crash a dedicated server on boot, so they are skipped.
+    const all = Array.isArray(index.files) ? index.files : [];
+    const files = all.filter(f => f?.env?.server !== 'unsupported');
+    let clientOnly = all.length - files.length;
     let totalBytes = 0;
     let installed = 0;
     let skipped = 0;
+    let capErr = null;
 
+    // Download with concurrency 4; each file is hash-checked against the index.
     const queue = files.slice();
     async function worker() {
-      while (queue.length) {
+      while (queue.length && !capErr) {
         const f = queue.shift();
-        try {
-          // Sanitize relative path; must stay inside server dir
-          const rel = String(f.path || '').replace(/\\/g, '/').replace(/\.\.+\//g, '');
-          const dest = path.resolve(dir, rel);
-          if (!dest.startsWith(dir + path.sep)) { skipped++; continue; }
-          fs.mkdirSync(path.dirname(dest), { recursive: true });
-
-          const downloads = Array.isArray(f.downloads) ? f.downloads : [];
-          let wrote = false;
-          for (const u of downloads) {
-            const r = await fetch(u, { headers: { 'User-Agent': UA } });
-            if (!r.ok) continue;
-            const buf = Buffer.from(await r.arrayBuffer());
+        const dest = inside(f.path);
+        const urls = (Array.isArray(f.downloads) ? f.downloads : []).filter(allowedPackUrl);
+        if (!dest || !urls.length) { skipped++; continue; }
+        let wrote = false;
+        for (const u of urls) {
+          try {
+            const buf = await downloadCapped(u, MAX_JAR_BYTES);
+            if (!hashMatches(buf, f.hashes)) continue;
             totalBytes += buf.length;
-            if (totalBytes > MAX_TOTAL) throw new Error('Modpack content exceeds 1 GB cap');
+            if (totalBytes > MAX_PACK_TOTAL) { capErr = new HttpError(413, 'Modpack content exceeds 1 GB cap'); return; }
+            await fsp.mkdir(path.dirname(dest), { recursive: true });
             await fsp.writeFile(dest, buf);
             wrote = true;
-            installed++;
             break;
-          }
-          if (!wrote) skipped++;
-        } catch (err) {
-          // bail out hard on cap exceeded
-          if (/exceeds 1 GB/.test(err.message)) throw err;
-          skipped++;
+          } catch { /* try the next mirror */ }
         }
+        if (wrote) installed++; else skipped++;
       }
     }
     await Promise.all([worker(), worker(), worker(), worker()]);
+    if (capErr) throw capErr;
 
-    // Extract overrides/* into the server root
+    // Extract overrides/ then server-overrides/ (the spec's server-specific
+    // layer, applied last so it wins) into the server root.
     let overrides = 0;
-    for (const e of zip.getEntries()) {
-      const en = e.entryName.replace(/\\/g, '/');
-      if (!en.startsWith('overrides/') || e.isDirectory) continue;
-      const sub = en.slice('overrides/'.length);
-      const dest = path.resolve(dir, sub);
-      if (!dest.startsWith(dir + path.sep)) continue;
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, e.getData());
-      overrides++;
+    for (const prefix of ['overrides/', 'server-overrides/']) {
+      for (const e of zip.getEntries()) {
+        const en = e.entryName.replace(/\\/g, '/');
+        if (!en.startsWith(prefix) || e.isDirectory) continue;
+        const dest = inside(en.slice(prefix.length));
+        if (!dest) continue;
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, e.getData());
+        overrides++;
+      }
     }
 
     audit(req.user.id, 'plugin.install_modpack', s.id, req.ip, {
-      name: index.name, version_id: version.id, installed, skipped, overrides
+      name: index.name, version_id: version.id, installed, skipped, client_only: clientOnly, overrides
     });
 
     res.json({
@@ -266,12 +298,15 @@ router.post('/install-modpack', async (req, res) => {
       version: index.versionId || version.version_number,
       installed,
       skipped,
+      client_only: clientOnly,
       overrides,
       mc_version: index.dependencies?.minecraft || null,
       loader: Object.keys(index.dependencies || {}).find(k => k !== 'minecraft') || null,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message || 'Modpack install failed' });
+    console.warn(`[plugin.install-modpack] ${project_id || version_id}: ${err.message}`);
+    const status = err.status || (err.name === 'TimeoutError' ? 504 : 500);
+    res.status(status).json({ error: err.message || 'Modpack install failed' });
   }
 });
 
@@ -279,9 +314,10 @@ router.post('/install-modpack', async (req, res) => {
 router.delete('/:name', async (req, res) => {
   const s = ownedServer(req, res); if (!s) return;
   const name = sanitizeName(req.params.name);
-  const target = path.join(pluginsDir(s.id), name);
-  // Confine to plugins dir
-  if (!target.startsWith(pluginsDir(s.id) + path.sep)) return res.status(400).json({ error: 'Invalid name' });
+  const dir = pluginsDir(s);
+  const target = path.join(dir, name);
+  // Confine to the server's plugins/mods dir
+  if (!name || !target.startsWith(dir + path.sep)) return res.status(400).json({ error: 'Invalid name' });
   await fsp.unlink(target).catch(() => {});
   audit(req.user.id, 'plugin.remove', s.id, req.ip, { name });
   res.json({ ok: true });
