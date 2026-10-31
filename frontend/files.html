@@ -639,10 +639,10 @@ function setSaveButtonState(state) {
   if (!btn) return;
   btn.disabled = (state === 'saving');
   btn.classList.remove('saving','saved','error');
-  if (state === 'saving') { btn.classList.add('saving'); btn.innerHTML = '<span class="ed-spin"></span> Saving…'; }
-  else if (state === 'saved') { btn.classList.add('saved'); btn.innerHTML = '✓ Saved'; }
-  else if (state === 'error') { btn.classList.add('error'); btn.innerHTML = '✗ Save failed'; }
-  else { btn.innerHTML = '<span class="msr">save</span> Save'; }
+  if (state === 'saving') { btn.classList.add('saving'); btn.innerHTML = '<span class="ed-spin"></span> ' + window.t('editor_saving'); }
+  else if (state === 'saved') { btn.classList.add('saved'); btn.innerHTML = '✓ ' + window.t('editor_saved'); }
+  else if (state === 'error') { btn.classList.add('error'); btn.innerHTML = '✗ ' + window.t('editor_save_failed'); }
+  else { btn.innerHTML = '<span class="msr">save</span> ' + window.t('save'); }
 }
 
 // Live dirty detection
