@@ -8,7 +8,8 @@
     "dev": "nodemon backend/server.js",
     "init-db": "node backend/db/init.js",
     "test": "bash scripts/smoke.sh",
-    "test:deep": "node scripts/test-100-deep.mjs"
+    "test:deep": "node scripts/test-100-deep.mjs",
+    "test:full": "bash scripts/test-all.sh"
   },
   "dependencies": {
     "adm-zip": "^0.6.0",

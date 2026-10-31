@@ -6,6 +6,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -14,16 +15,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Syntax check backend entrypoint
         run: node --check backend/server.js
-      - name: Unit tests (mock RCON + console health, no live server)
-        run: |
-          node scripts/test-console-health.mjs
-          node scripts/test-rcon-tick.mjs
-      - name: Smoke tests (boot server on throwaway DB, page sweep + e2e health)
-        run: npm test
+      - name: All offline suites (smoke + unit + isolated API suites)
+        run: npm run test:full
       - name: Dependency audit (production deps)
         run: npm audit --omit=dev --audit-level=high
