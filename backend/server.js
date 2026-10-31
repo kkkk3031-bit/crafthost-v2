@@ -178,6 +178,9 @@ const apiLimit = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   keyGenerator: userKey,
+  // JSON like every other API error (the default is plain text, which the
+  // UI could only show as "HTTP 429").
+  message: { error: "Too many requests — try again in a minute." },
 });
 app.use("/api", apiLimit);
 
@@ -187,6 +190,9 @@ const authLimit = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   keyGenerator: (req, res) => `ip:${ipKeyGenerator(req, res)}`,
+  // JSON like every other API error (the default is plain text, which the
+  // UI could only show as "HTTP 429").
+  message: { error: "Too many requests — try again in a minute." },
 });
 app.use("/api/auth/register", authLimit);
 app.use("/api/auth/login", authLimit);

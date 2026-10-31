@@ -608,7 +608,7 @@ async function wizDeploy() {
       });
       if (!up.ok) {
         const err = await up.json().catch(() => ({}));
-        throw new Error(err.error || "JAR upload failed");
+        throw new Error(window.trError(err.error || "JAR upload failed"));
       }
       const jar = await up.json();
       body.customJarPath = jar.id;

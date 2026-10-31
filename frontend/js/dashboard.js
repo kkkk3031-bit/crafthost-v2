@@ -1216,7 +1216,7 @@ async function openSettings(sid, name) {
           setIconState(true);
         } else {
           status.style.color = "var(--red, #ef4444)";
-          status.textContent = "✗ " + (body.error || `HTTP ${r.status}`);
+          status.textContent = "✗ " + (window.trError(body.error) || `HTTP ${r.status}`);
         }
       } catch (err) {
         status.style.color = "var(--red, #ef4444)";
@@ -2189,7 +2189,7 @@ async function openWorldImport(sid, sname) {
             }, 1500);
           } else {
             status.style.color = "var(--red, #ef4444)";
-            status.textContent = "✗ " + (r.error || `HTTP ${xhr.status}`);
+            status.textContent = "✗ " + (window.trError(r.error) || `HTTP ${xhr.status}`);
             btn.disabled = false;
             btn.innerHTML = "🌍 " + window.t("ui_retry");
           }

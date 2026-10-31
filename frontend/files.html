@@ -443,7 +443,7 @@ function uploadFilesXhr(fileList, basePath, onProgress) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded, e.total); };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); } }
-      else { try { reject(new Error(JSON.parse(xhr.responseText).error || `HTTP ${xhr.status}`)); } catch { reject(new Error('Upload failed')); } }
+      else { try { reject(new Error(window.trError(JSON.parse(xhr.responseText).error) || `HTTP ${xhr.status}`)); } catch { reject(new Error('Upload failed')); } }
     };
     xhr.onerror = () => reject(new Error('Network error'));
     xhr.send(fd);

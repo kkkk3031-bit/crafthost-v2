@@ -828,7 +828,7 @@
       async function getJson(url) {
         const r = await fetch(url, { credentials: "include" });
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        if (!r.ok) throw new Error(window.trError(data.error) || `HTTP ${r.status}`);
         return data;
       }
       async function loadFeed(targetId, sort) {

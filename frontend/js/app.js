@@ -1665,6 +1665,102 @@ window.applyLang = (lang) => {
   });
 })();
 
+// Server error messages are English; in Arabic mode the known ones are
+// translated here (exact text, then patterns for messages with values).
+// Unknown messages pass through unchanged.
+window.ERRORS_AR = {
+  "Admin accounts cannot be self-deleted. Demote first.": "لا يمكن لحسابات المشرفين حذف نفسها. أزل صلاحية المشرف أولاً.",
+  "Admin only": "للمشرفين فقط",
+  "Backup not found": "النسخة الاحتياطية غير موجودة",
+  "Both passwords required": "كلمتا المرور مطلوبتان",
+  "Cannot delete root": "لا يمكن حذف المجلد الرئيسي",
+  "Command too long (max 1000)": "الأمر طويل جداً (الحد 1000)",
+  "Could not write server.properties": "تعذّر حفظ server.properties",
+  "Current password required": "كلمة المرور الحالية مطلوبة",
+  "Download failed": "فشل التنزيل",
+  "Email already in use": "البريد الإلكتروني مستخدم مسبقاً",
+  "Email and password required": "البريد الإلكتروني وكلمة المرور مطلوبان",
+  "Email or username already exists": "البريد الإلكتروني أو اسم المستخدم موجود مسبقاً",
+  "Email or username already in use": "البريد الإلكتروني أو اسم المستخدم مستخدم مسبقاً",
+  "Email required": "البريد الإلكتروني مطلوب",
+  "Failed to list public servers": "تعذّر عرض السيرفرات العامة",
+  "File is not a PNG": "الملف ليس بصيغة PNG",
+  "File not found": "الملف غير موجود",
+  "File too large to edit": "الملف كبير جداً للتعديل",
+  "Hash mismatch — refusing to install": "بصمة الملف غير مطابقة — تم رفض التثبيت",
+  "Invalid credentials": "بيانات الدخول غير صحيحة",
+  "Invalid current password": "كلمة المرور الحالية غير صحيحة",
+  "Invalid difficulty": "مستوى الصعوبة غير صالح",
+  "Invalid email address": "عنوان البريد الإلكتروني غير صالح",
+  "Invalid gamemode": "نمط اللعب غير صالح",
+  "Invalid max_players": "عدد اللاعبين الأقصى غير صالح",
+  "Invalid name": "الاسم غير صالح",
+  "Invalid or expired token": "الرابط غير صالح أو منتهي الصلاحية",
+  "Invalid password": "كلمة المرور غير صحيحة",
+  "Invalid username": "اسم المستخدم غير صالح",
+  "Invalid version": "الإصدار غير صالح",
+  "JAR file missing on server": "ملف JAR مفقود على الخادم",
+  "JAR library storage is full. Delete a JAR first.": "مساحة مكتبة JAR ممتلئة. احذف ملف JAR أولاً.",
+  "JAR upload failed": "فشل رفع ملف JAR",
+  "Missing command": "الأمر مفقود",
+  "Missing fields": "حقول مطلوبة ناقصة",
+  "Missing type": "النوع مفقود",
+  "Modpack hash mismatch — refusing to install": "بصمة حزمة المودات غير مطابقة — تم رفض التثبيت",
+  "Modpack is not a valid .mrpack": "حزمة المودات ليست ملف ‎.mrpack صالحاً",
+  "Modrinth project lookup failed": "تعذّر العثور على المشروع في Modrinth",
+  "Modrinth project not found": "المشروع غير موجود في Modrinth",
+  "Modrinth search failed": "فشل البحث في Modrinth",
+  "Modrinth version lookup failed": "تعذّر العثور على الإصدار في Modrinth",
+  "Modrinth versions fetch failed": "تعذّر جلب الإصدارات من Modrinth",
+  "No downloadable file in version": "لا يوجد ملف قابل للتنزيل في هذا الإصدار",
+  "No file uploaded": "لم يتم رفع أي ملف",
+  "No icon set": "لا توجد أيقونة",
+  "No modpack versions available": "لا توجد إصدارات متاحة لحزمة المودات",
+  "No updatable fields": "لا توجد حقول للتحديث",
+  "Not a directory": "ليس مجلداً",
+  "Not a file": "ليس ملفاً",
+  "Not found": "غير موجود",
+  "Password required": "كلمة المرور مطلوبة",
+  "Read failed": "فشلت القراءة",
+  "Server is not online": "السيرفر غير متصل",
+  "Server not found": "السيرفر غير موجود",
+  "Source server not found": "السيرفر المصدر غير موجود",
+  "This project does not ship a server JAR": "هذا المشروع لا يوفّر ملف JAR للسيرفر",
+  "Token + password required": "الرابط وكلمة المرور مطلوبان",
+  "Token already used": "تم استخدام الرابط مسبقاً",
+  "Token expired": "انتهت صلاحية الرابط",
+  "Too large": "كبير جداً",
+  "Type DELETE to confirm": "اكتب DELETE للتأكيد",
+  "Unauthorized": "غير مصرّح",
+  "Unknown JAR": "ملف JAR غير معروف",
+  "Unknown type": "نوع غير معروف",
+  "Unsupported type": "نوع غير مدعوم",
+  "Username already in use": "اسم المستخدم مستخدم مسبقاً",
+  "Vanilla servers cannot load plugins or mods. Switch to Paper or Fabric first.": "سيرفرات Vanilla لا تدعم الإضافات أو المودات. غيّر المحرك إلى Paper أو Fabric أولاً.",
+  "Empty zip": "ملف zip فارغ",
+  "Zip does not look like a Minecraft world (no level.dat found; expected world/level.dat or level.dat at root)": "الملف لا يبدو عالم ماين كرافت (لم يُعثر على level.dat)",
+  "Too many requests — try again in a minute.": "طلبات كثيرة — حاول مجدداً بعد دقيقة.",
+  "Upload failed": "فشل الرفع"
+};
+window.ERROR_PATTERNS_AR = [
+  [/^Storage limit reached: (.+) used of (.+?)\. Delete files or old worlds to make room\.$/, "تم بلوغ حد المساحة: $1 مستخدمة من $2. احذف ملفات أو عوالم قديمة لتوفير مساحة."],
+  [/^Server limit reached — you can create up to (\d+) servers\. Delete one to make room\.$/, "تم بلوغ حد السيرفرات — يمكنك إنشاء $1 سيرفرات كحد أقصى. احذف واحداً لتوفير مكان."],
+  [/^You can have up to (\d+) servers running at a time\. Stop one \(e\.g\. \"(.+)\"\) to start another\.$/, "يمكنك تشغيل $1 سيرفر في نفس الوقت. أوقف واحداً (مثل \"$2\") لتشغيل آخر."],
+  [/^No (\w+)-compatible version found for this project$/, "لا يوجد إصدار متوافق مع $1 لهذا المشروع"],
+  [/^JAR library is full \((\d+) JARs\)\. Delete one first\.$/, "مكتبة JAR ممتلئة ($1 ملفات). احذف واحداً أولاً."],
+  [/^JAR library storage is full \((\d+) MB\)\. Delete a JAR first\.$/, "مساحة مكتبة JAR ممتلئة ($1 MB). احذف ملف JAR أولاً."],
+  [/^In use by: (.+)\. Switch their engine first\.$/, "مستخدم في: $1. غيّر محركها أولاً."],
+  [/^World is too large when unpacked \((\d+) MB, limit (\d+) MB\)$/, "العالم كبير جداً بعد فك الضغط ($1 MB، الحد $2 MB)"],
+  [/^Not a valid zip: .*$/, "الملف ليس zip صالحاً"],
+  [/^Install failed: (.*)$/, "فشل التثبيت: $1"]
+];
+window.trError = (msg) => {
+  if (!msg || (localStorage.getItem("crafthost.lang") || "en") !== "ar") return msg;
+  const s = String(msg);
+  if (window.ERRORS_AR[s]) return window.ERRORS_AR[s];
+  for (const [re, ar] of window.ERROR_PATTERNS_AR) if (re.test(s)) return s.replace(re, ar);
+  return s;
+};
 window.api = async (path, opts = {}) => {
   const init = {
     method: opts.method || "GET",
@@ -1680,7 +1776,7 @@ window.api = async (path, opts = {}) => {
     data = {};
   }
   if (!r.ok) {
-    const err = new Error(data.error || `HTTP ${r.status}`);
+    const err = new Error(window.trError(data.error) || `HTTP ${r.status}`);
     err.status = r.status; // 401 = unauth, 5xx = server, etc.
     err.transient = r.status >= 500; // server-side issue, retry is reasonable
     err.data = data; // full response body (e.g. conflict details)
