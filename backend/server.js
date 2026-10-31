@@ -517,6 +517,8 @@ setInterval(() => {
   }
 }, parseInt(process.env.WS_PING_MS || "30000", 10)).unref();
 
+const { pruneOldRows } = require("./lib/retention");
+
 const PORT = parseInt(process.env.PORT || "4000", 10);
 // Stop Minecraft JVMs with the backend so none are left orphaned on a port.
 let shuttingDown = false;
@@ -1266,10 +1268,13 @@ server.listen(PORT, async () => {
             }
           } catch {}
         }
-        // Tmp files
-        for (const tmpDir of ["/tmp", pathMod.join(VOLUME_ROOT, "tmp")]) {
+        // Abandoned uploads only: multer's temp names (32 hex chars) and our
+        // DB-dump temp files. /tmp is shared with every other process on the
+        // host, so nothing else there is ours to delete.
+        const OURS = /^([0-9a-f]{32}|chdb-\d+\.db)$/;
+        for (const tmpDir of [require("os").tmpdir(), pathMod.join(VOLUME_ROOT, "tmp")]) {
           try {
-            const files = await fspMod.readdir(tmpDir);
+            const files = (await fspMod.readdir(tmpDir)).filter((f) => OURS.test(f));
             for (const f of files) {
               const full = pathMod.join(tmpDir, f);
               try {
@@ -1287,6 +1292,7 @@ server.listen(PORT, async () => {
           console.log(
             `🧹 Janitor: freed ${Math.round(freed / 1024 / 1024)}MB across ${hits} items`,
           );
+        pruneOldRows();
       } catch (err) {
         console.warn("[janitor] loop failed:", err.message);
       }
