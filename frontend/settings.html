@@ -162,14 +162,14 @@ document.getElementById('btnSaveProfile').onclick = async () => {
   const email = document.getElementById('fEmail').value.trim();
   const username = document.getElementById('fUsername').value.trim();
   const current_password = document.getElementById('fProfilePassword').value;
-  if (!current_password) return toast('Enter your current password to save changes', 'error');
-  if (!email || !username) return toast('Email and username are required', 'error');
+  if (!current_password) return toast(window.t('msg_need_current_pw'), 'error');
+  if (!email || !username) return toast(window.t('msg_email_user_required'), 'error');
 
   try {
     const r = await api('/api/auth/me', { method: 'PATCH', body: { email, username, current_password } });
     currentUser = r.user;
     document.getElementById('fProfilePassword').value = '';
-    toast('Profile updated');
+    toast(window.t('msg_profile_updated'));
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -184,13 +184,13 @@ document.getElementById('btnChangePw').onclick = async () => {
   const current_password = document.getElementById('pwCurrent').value;
   const new_password = document.getElementById('pwNew').value;
   const confirm = document.getElementById('pwConfirm').value;
-  if (!current_password || !new_password) return toast('Fill in all fields', 'error');
-  if (new_password.length < 8) return toast('New password must be 8+ characters', 'error');
-  if (new_password !== confirm) return toast('Passwords do not match', 'error');
+  if (!current_password || !new_password) return toast(window.t('msg_fill_all'), 'error');
+  if (new_password.length < 8) return toast(window.t('msg_pw_min'), 'error');
+  if (new_password !== confirm) return toast(window.t('msg_pw_mismatch'), 'error');
   try {
     await api('/api/auth/change-password', { method: 'POST', body: { current_password, new_password } });
     closePwModal();
-    toast('Password updated');
+    toast(window.t('msg_pw_updated'));
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -204,11 +204,11 @@ function closeDelModal() {
 document.getElementById('btnDelete').onclick = async () => {
   const confirm = document.getElementById('delConfirm').value;
   const password = document.getElementById('delPassword').value;
-  if (confirm !== 'DELETE') return toast('Type DELETE to confirm', 'error');
-  if (!password) return toast('Password required', 'error');
+  if (confirm !== 'DELETE') return toast(window.t('msg_type_delete'), 'error');
+  if (!password) return toast(window.t('msg_pw_required'), 'error');
   try {
     await api('/api/auth/me', { method: 'DELETE', body: { confirm, password } });
-    toast('Account deleted');
+    toast(window.t('msg_account_deleted'));
     setTimeout(() => location.href = '/', 1200);
   } catch (err) {
     toast(err.message, 'error');

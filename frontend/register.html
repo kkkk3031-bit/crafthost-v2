@@ -81,7 +81,7 @@ document.getElementById('regForm').addEventListener('submit', async (e) => {
         localStorage.setItem('crafthost.lastEmail', fd.get('email'));
         if (r.user) localStorage.setItem('crafthost.user', JSON.stringify(r.user));
       } catch {}
-      toast('Account created. Redirecting…');
+      toast(window.t('msg_account_created'));
       const safeNext = window.safeNext();
       setTimeout(() => location.href = safeNext, 700);
     }

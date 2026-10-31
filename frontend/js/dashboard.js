@@ -463,7 +463,7 @@ function openDeleteConfirm(sid, name) {
     btn.textContent = "⏳ Deleting…";
     try {
       await api(`/api/servers/${sid}`, { method: "DELETE" });
-      toast("Server deleted");
+      toast(window.t("msg_server_deleted"));
       modal.classList.remove("show");
       loadServers();
     } catch (err) {
@@ -584,14 +584,14 @@ async function autoFixOom(sid, name) {
   )
     return;
   try {
-    toast(`🔧 Healing ${name}…`);
+    toast(window.tf("msg_healing", { name }));
     await api(`/api/servers/${sid}/swap-jar`, {
       // force: the user just confirmed this recovery swap, and the crashed
       // version may be newer than 1.21.1 (which would trip the downgrade guard).
       method: "POST",
       body: { type: "paper", version: "1.21.1", force: true },
     });
-    toast(`✓ ${name} restarted with Paper 1.21.1`);
+    toast(window.tf("msg_healed", { name }));
     loadServers();
   } catch (err) {
     toast(err.message || "Auto-fix failed", "error");
@@ -771,7 +771,7 @@ async function openSwapJar(sid, curType, curVer, planId) {
         method: "POST",
         body: forceNext ? { type, version, force: true } : { type, version },
       });
-      toast(`✓ Swapping to ${type} ${version} — restarting…`);
+      toast(window.tf("msg_swapping", { engine: `${type} ${version}` }));
       document.getElementById("swapJarModal").classList.remove("show");
       // Flip the card to "Starting…" immediately and tight-poll until online,
       // same as serverAction — the backend marks it starting right away.
@@ -921,7 +921,7 @@ async function openBackups(sid, name) {
         method: "POST",
         body: {},
       });
-      toast(`✓ Backup created (${fmtBackupSize(r.size)})`);
+      toast(window.tf("msg_backup_created", { size: fmtBackupSize(r.size) }));
       if (r.was_running) {
         const s = servers.find((x) => x.id === sid);
         if (s) s.status = "starting";
@@ -950,7 +950,7 @@ async function openBackups(sid, name) {
       const r = await api(`/api/servers/${sid2}/backups/${encodeURIComponent(bid)}/restore`, {
         method: "POST",
       });
-      toast("✓ World restored" + (r.restarted ? " — restarting server" : ""));
+      toast(window.t(r.restarted ? "msg_world_restored_restart" : "msg_world_restored"));
       if (r.restarted) {
         const s = servers.find((x) => x.id === sid2);
         if (s) s.status = "starting";
@@ -965,13 +965,13 @@ async function openBackups(sid, name) {
     }
   };
   window.deleteBackup = async (sid2, bid, name2) => {
-    if (!confirm(`Delete this backup of "${name2}"? This cannot be undone.`)) return;
+    if (!confirm(window.tf("msg_delete_backup_of_q", { name: name2 }))) return;
     bkError("");
     try {
       await api(`/api/servers/${sid2}/backups/${encodeURIComponent(bid)}`, {
         method: "DELETE",
       });
-      toast("✓ Backup deleted");
+      toast("✓ " + window.t("msg_backup_deleted"));
       await refresh();
     } catch (err) {
       showErr(err, "Delete failed");
@@ -991,7 +991,7 @@ async function promoteServer(sid, name) {
     return;
   try {
     const r = await api(`/api/servers/${sid}/promote`, { method: "POST" });
-    toast(`✓ "${name}" is now public on ${r.public_host}:${r.mc_port}`);
+    toast(window.tf("msg_now_public", { name, addr: `${r.public_host}:${r.mc_port}` }));
     loadServers();
   } catch (err) {
     toast(err.message, "error");
@@ -1610,7 +1610,7 @@ async function loadServers() {
       isDemo = false;
       servers = [];
       // Best-effort retry once after a short delay (covers cold-start latency).
-      toast("Could not load your servers — retrying…", "warn");
+      toast(window.t("msg_servers_retry"), "warn");
       setTimeout(() => {
         loadServers().catch(() => {});
       }, 2500);
@@ -1621,7 +1621,7 @@ async function loadServers() {
 
 async function serverAction(id, action) {
   if (isDemo) {
-    toast("Sign in to control real servers", "warn");
+    toast(window.t("msg_signin_control"), "warn");
     return;
   }
   const verb = action[0].toUpperCase() + action.slice(1) + "ing";
@@ -1695,14 +1695,14 @@ function tightPollServerStatus(serverId, targetStatus) {
 
 async function deleteServer(id, name) {
   if (isDemo) {
-    toast("Sign in to delete real servers", "warn");
+    toast(window.t("msg_signin_delete"), "warn");
     return;
   }
-  if (!confirm(`Delete "${name}"? This removes the server and all its data.`))
+  if (!confirm(window.tf("msg_delete_server_q", { name })))
     return;
   try {
     await api(`/api/servers/${id}`, { method: "DELETE" });
-    toast("Server deleted");
+    toast(window.t("msg_server_deleted"));
     loadServers();
   } catch (err) {
     toast(err.message, "error");
@@ -2032,7 +2032,7 @@ async function openCloneDialog(sourceId, sourceName) {
       const kb = Math.round((r.copy_stats?.bytes || 0) / 1024);
       status.style.color = "var(--emerald)";
       status.textContent = `✓ Cloned · ${r.copy_stats?.files || 0} file(s), ${kb} KB · ${r.auto_started ? "starting" : "created (manual start)"}`;
-      toast("✓ Server cloned");
+      toast(window.t("msg_server_cloned"));
       setTimeout(() => {
         closeCloneDialog();
         loadServers();
@@ -2182,7 +2182,7 @@ async function openWorldImport(sid, sname) {
             const dims = Object.keys(r.restored || {}).join(", ");
             status.style.color = "var(--emerald)";
             status.textContent = `✓ World imported (${dims || "world"}) — server restarting`;
-            toast("✓ World imported, restarting");
+            toast(window.t("msg_world_imported"));
             setTimeout(() => {
               closeWorldImport();
               loadServers();
@@ -2221,11 +2221,11 @@ function closeWorldImport() {
 }
 function wiSetFile(file) {
   if (!/\.zip$/i.test(file.name)) {
-    toast("Please choose a .zip file", "error");
+    toast(window.t("msg_choose_zip"), "error");
     return;
   }
   if (file.size > 500 * 1024 * 1024) {
-    toast("Zip exceeds 500 MB cap", "error");
+    toast(window.t("msg_zip_too_large"), "error");
     return;
   }
   window._wiFile = file;
@@ -2425,7 +2425,7 @@ async function renderBedrockStatus(sid, sname) {
         if (s2.status === "connected") {
           clearInterval(bedrockPollTimer);
           bedrockPollTimer = null;
-          toast("✓ Bedrock cross-play connected");
+          toast(window.t("msg_bedrock_connected"));
           renderBedrockStatus(sid, sname);
         } else if (s2.status === "expired" || s2.status === "failed") {
           clearInterval(bedrockPollTimer);
@@ -2484,7 +2484,7 @@ async function doEnableBedrock(sid, sname, takeover) {
       method: "POST",
       body: { takeover },
     });
-    toast("✓ Bedrock cross-play enabled");
+    toast(window.t("msg_bedrock_enabled"));
     if (r.restart_required)
       toast(
         r.restart_reason || "Restart the server to load the new plugins.",
@@ -2548,7 +2548,7 @@ async function disableBedrock(sid) {
       method: "POST",
       body: { secret: null },
     });
-    toast("Bedrock cross-play disabled");
+    toast(window.t("msg_bedrock_disabled"));
     closeBedrockModal();
     if (typeof loadServers === "function") loadServers();
   } catch (err) {

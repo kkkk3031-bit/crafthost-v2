@@ -484,7 +484,7 @@ function renderPlayers() {
 
 function openPlayerMenu(name, e) {
   const isDemo = picker?.demo || picker?.current?.id?.startsWith('demo-');
-  if (isDemo) { toast('Sign in to manage real players', 'warn'); return; }
+  if (isDemo) { toast(window.t('msg_signin_players'), 'warn'); return; }
   // Build a small contextual menu
   document.querySelectorAll('.player-menu').forEach(el => el.remove());
   const menu = document.createElement('div');
@@ -804,7 +804,7 @@ cmdInput.addEventListener('keydown', (e) => {
 // ── Lifecycle buttons ─────────────────────────────────────────────────
 async function lifecycle(action) {
   if (!picker?.current) return;
-  if (picker.demo || picker.current.id.startsWith('demo-')) { toast('Demo mode — sign in to control real servers', 'warn'); return; }
+  if (picker.demo || picker.current.id.startsWith('demo-')) { toast(window.t('msg_demo_control'), 'warn'); return; }
   const id = picker.current.id;
   // Disable lifecycle buttons + flip the indicator to 'warn' (yellow) so the
   // user immediately sees something happening, rather than clicking and
@@ -814,7 +814,7 @@ async function lifecycle(action) {
   setConn(action === 'stop' ? 'offline' : 'demo');
   try {
     await api(`/api/servers/${id}/${action}`, { method: 'POST' });
-    toast(`Server ${action} requested`);
+    toast(window.tOr('msg_req_' + action, `Server ${action} requested`));
     // Then tight-poll /status until the JVM reaches the target state, so the
     // connDot flips to green (or fully offline) the instant it actually
     // transitions — instead of waiting up to several seconds for the WS to
@@ -841,8 +841,8 @@ async function lifecycle(action) {
   }
 }
 document.getElementById('startBtn').onclick = () => lifecycle('start');
-document.getElementById('stopBtn').onclick = () => { if (confirm('Stop the server?')) lifecycle('stop'); };
-document.getElementById('restartBtn').onclick = () => { if (confirm('Restart the server?')) lifecycle('restart'); };
+document.getElementById('stopBtn').onclick = () => { if (confirm(window.t('msg_confirm_stop'))) lifecycle('stop'); };
+document.getElementById('restartBtn').onclick = () => { if (confirm(window.t('msg_confirm_restart'))) lifecycle('restart'); };
 
 // ── Boot ──────────────────────────────────────────────────────────────
 function updateHostLabel() {
@@ -855,7 +855,7 @@ function updateHostLabel() {
   picker = await useServerPicker(document.getElementById('serverPicker'));
   loadHistory();
   picker.onChange(() => { term.innerHTML = ''; updateHostLabel(); loadHistory(); openLogStream(); });
-  if (picker.demo) toast('Showing a demo console — sign in to control real servers.', 'warn');
+  if (picker.demo) toast(window.t('msg_demo_console'), 'warn');
   updateHostLabel();
   openLogStream();
 })();

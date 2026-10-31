@@ -224,10 +224,10 @@ async function loadCustom() {
     `).join('');
     grid.querySelectorAll('button[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm(`Delete ${btn.dataset.name}?`)) return;
+        if (!confirm(window.tf('msg_delete_q', { name: btn.dataset.name }))) return;
         try {
           await api(`/api/jars/${encodeURIComponent(btn.dataset.del)}`, { method: 'DELETE' });
-          toast('Deleted');
+          toast(window.t('msg_deleted'));
           loadCustom();
         } catch (err) { toast(err.message, 'error'); }
       });
@@ -250,11 +250,11 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
 // Upload handlers
 async function uploadJar(file) {
   if (!file) return;
-  if (!/\.jar$/i.test(file.name)) { toast('Only .jar files', 'error'); return; }
-  if (file.size > 500 * 1024 * 1024) { toast('File too large (max 500 MB)', 'error'); return; }
+  if (!/\.jar$/i.test(file.name)) { toast(window.t('msg_only_jar'), 'error'); return; }
+  if (file.size > 500 * 1024 * 1024) { toast(window.t('msg_jar_too_large'), 'error'); return; }
   const fd = new FormData();
   fd.append('jar', file);
-  toast(`Uploading ${file.name}…`);
+  toast(window.tf('msg_uploading', { name: file.name }));
   try {
     const r = await fetch('/api/jars', { method: 'POST', body: fd, credentials: 'include' });
     if (!r.ok) {
@@ -262,7 +262,7 @@ async function uploadJar(file) {
       throw new Error(err.error || `HTTP ${r.status}`);
     }
     const data = await r.json();
-    toast(`✓ Uploaded ${data.filename} (${fmtBytes(data.size)})`);
+    toast(window.tf('msg_uploaded', { name: data.filename, size: fmtBytes(data.size) }));
     document.querySelector('.tab[data-tab="custom"]').click();
     loadCustom();
   } catch (err) { toast(err.message, 'error'); }

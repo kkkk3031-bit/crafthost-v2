@@ -104,7 +104,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         localStorage.setItem('crafthost.remember', remember ? '1' : '0');
         if (r.user) localStorage.setItem('crafthost.user', JSON.stringify(r.user));
       } catch {}
-      toast('Welcome back!');
+      toast(window.t('msg_welcome_back'));
       const safeNext = window.safeNext();
       setTimeout(() => location.href = safeNext, 600);
     }

@@ -61,13 +61,13 @@ document.getElementById('resetForm').addEventListener('submit', async (e) => {
   const fd = new FormData(e.target);
   const password = fd.get('password');
   const confirm = fd.get('confirm');
-  if (password !== confirm) { toast('Passwords do not match', 'error'); return; }
+  if (password !== confirm) { toast(window.t('msg_pw_mismatch'), 'error'); return; }
   const btn = e.target.querySelector('button[type="submit"]');
   const orig = btn.textContent;
   btn.disabled = true; btn.textContent = 'Updating…';
   try {
     await api('/api/auth/reset', { method: 'POST', body: { token, password } });
-    toast('Password updated — sign in with your new password');
+    toast(window.t('msg_pw_reset_done'));
     setTimeout(() => location.href = '/login.html', 1500);
   } catch (err) {
     toast(err.message || 'Reset failed', 'error');

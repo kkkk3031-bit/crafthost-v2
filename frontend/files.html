@@ -412,22 +412,22 @@ async function readFile(p) {
 }
 
 async function writeFile(p, content) {
-  if (picker?.demo) { toast('Demo mode — sign in to save', 'warn'); return { ok: false }; }
+  if (picker?.demo) { toast(window.t('msg_demo_signin'), 'warn'); return { ok: false }; }
   return api(`/api/servers/${sid()}/files/write`, { method: 'PUT', body: { path: p, content } });
 }
 
 async function mkdir(p) {
-  if (picker?.demo) { toast('Demo mode — sign in to create', 'warn'); return; }
+  if (picker?.demo) { toast(window.t('msg_demo_signin'), 'warn'); return; }
   await api(`/api/servers/${sid()}/files/mkdir`, { method: 'POST', body: { path: p } });
 }
 
 async function deletePath(p) {
-  if (picker?.demo) { toast('Demo mode — sign in to delete', 'warn'); return; }
+  if (picker?.demo) { toast(window.t('msg_demo_signin'), 'warn'); return; }
   await api(`/api/servers/${sid()}/files?path=${encodeURIComponent(p)}`, { method: 'DELETE' });
 }
 
 function uploadFilesXhr(fileList, basePath, onProgress) {
-  if (picker?.demo) { toast('Demo mode — sign in to upload', 'warn'); return Promise.reject(new Error('demo')); }
+  if (picker?.demo) { toast(window.t('msg_demo_signin'), 'warn'); return Promise.reject(new Error('demo')); }
   return new Promise((resolve, reject) => {
     const fd = new FormData();
     fd.append('path', basePath);
@@ -572,7 +572,7 @@ function renderFiles(items) {
         if (act === 'edit') openEditor(p);
         else if (act === 'delete') doDelete(p, item.name);
         else if (act === 'download') {
-          if (picker?.demo) { toast('Demo mode — sign in to download', 'warn'); return; }
+          if (picker?.demo) { toast(window.t('msg_demo_signin'), 'warn'); return; }
           window.location.href = `/api/servers/${sid()}/files/download?path=${encodeURIComponent(p)}`;
         }
       });
@@ -658,7 +658,7 @@ document.getElementById('editorArea').addEventListener('input', () => {
 });
 
 document.getElementById('editorClose').onclick = () => {
-  if (editorDirty && !confirm('You have unsaved changes — discard them?')) return;
+  if (editorDirty && !confirm(window.t('msg_discard_q'))) return;
   document.getElementById('editor').style.display = 'none';
   editingPath = null;
   editorDirty = false;
@@ -670,7 +670,7 @@ document.getElementById('editorSave').onclick = async () => {
   if (btn?.disabled) return; // ignore double-clicks during save
   const content = document.getElementById('editorArea').value;
   // If user clicks Save with no changes, give a clear hint instead of silently rewriting.
-  if (content === editorOriginal) { toast('No changes to save', 'warn'); return; }
+  if (content === editorOriginal) { toast(window.t('msg_no_changes'), 'warn'); return; }
   setSaveButtonState('saving');
   try {
     const r = await writeFile(editingPath, content);
@@ -684,13 +684,13 @@ document.getElementById('editorSave').onclick = async () => {
     editorDirty = false;
     updateDirtyBadge();
     setSaveButtonState('saved');
-    toast('✓ Saved ' + editingPath);
+    toast(window.tf('msg_saved', { name: editingPath }));
     // Stay on the editor — the user can keep editing OR close manually.
     // Flash success for 1.5s then reset to idle.
     setTimeout(() => setSaveButtonState('idle'), 1500);
   } catch (err) {
     setSaveButtonState('error');
-    toast('Save failed: ' + (err.message || 'unknown error'), 'error');
+    toast(window.tf('msg_save_failed', { err: err.message || 'unknown error' }), 'error');
     setTimeout(() => setSaveButtonState('idle'), 2500);
   }
 };
@@ -705,8 +705,8 @@ window.addEventListener('beforeunload', (e) => {
 
 // ── Toolbar actions ───────────────────────────────────────────────────
 async function doDelete(p, name) {
-  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-  try { await deletePath(p); toast('Deleted'); navigate(currentPath); }
+  if (!confirm(window.tf('msg_delete_file_q', { name }))) return;
+  try { await deletePath(p); toast(window.t('msg_deleted')); navigate(currentPath); }
   catch (err) { toast(err.message, 'error'); }
 }
 
@@ -722,7 +722,7 @@ document.getElementById('newFileBtn').onclick = async () => {
   const name = prompt('New file name (e.g. notes.txt):');
   if (!name) return;
   const p = (currentPath === '/' ? '' : currentPath) + '/' + name;
-  try { await writeFile(p, ''); toast('Created ' + p); navigate(currentPath); }
+  try { await writeFile(p, ''); toast(window.tf('msg_created', { name: p })); navigate(currentPath); }
   catch (err) { toast(err.message, 'error'); }
 };
 
@@ -730,7 +730,7 @@ document.getElementById('newFolderBtn').onclick = async () => {
   const name = prompt('New folder name:');
   if (!name) return;
   const p = (currentPath === '/' ? '' : currentPath) + '/' + name;
-  try { await mkdir(p); toast('Created ' + p); navigate(currentPath); }
+  try { await mkdir(p); toast(window.tf('msg_created', { name: p })); navigate(currentPath); }
   catch (err) { toast(err.message, 'error'); }
 };
 
@@ -794,22 +794,22 @@ async function loadBackups() {
 }
 
 async function doBackupAction(act, bid) {
-  if (picker?.demo) { toast('Sign in for real backups', 'warn'); return; }
+  if (picker?.demo) { toast(window.t('msg_signin_backups'), 'warn'); return; }
   if (act === 'download') {
     window.location.href = `/api/servers/${sid()}/backups/${encodeURIComponent(bid)}/download`;
     return;
   }
   if (act === 'delete') {
-    if (!confirm(`Delete backup ${bid}? Cannot be undone.`)) return;
+    if (!confirm(window.tf('msg_delete_backup_q', { id: bid }))) return;
     try {
       await api(`/api/servers/${sid()}/backups/${encodeURIComponent(bid)}`, { method: 'DELETE' });
-      toast('Backup deleted');
+      toast(window.t('msg_backup_deleted'));
       loadBackups();
     } catch (err) { toast(err.message, 'error'); }
     return;
   }
   if (act === 'restore') {
-    if (!confirm(`Restore backup ${bid}?\n\n⚠ This will REPLACE the current world. The server will stop, restore, then restart.`)) return;
+    if (!confirm(window.tf('msg_restore_q', { id: bid }))) return;
     const toastEl = makeProgressToast(`Restoring ${bid}…`);
     toastEl.update('Stopping server + unpacking…', 50);
     try {
@@ -849,7 +849,7 @@ async function loadProps() {
 }
 
 document.getElementById('p_save').addEventListener('click', async () => {
-  if (!sid() || picker?.demo) { toast('Sign in to save', 'warn'); return; }
+  if (!sid() || picker?.demo) { toast(window.t('msg_signin_save'), 'warn'); return; }
   const body = {
     motd: document.getElementById('p_motd').value,
     max_players: parseInt(document.getElementById('p_max_players').value, 10),
@@ -874,13 +874,13 @@ document.getElementById('p_save').addEventListener('click', async () => {
 });
 
 document.getElementById('bkNowBtn').addEventListener('click', async () => {
-  if (picker?.demo) { toast('Sign in to back up', 'warn'); return; }
+  if (picker?.demo) { toast(window.t('msg_signin_backup'), 'warn'); return; }
   const btn = document.getElementById('bkNowBtn');
   const orig = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Snapshotting…';
   try {
     const r = await api(`/api/servers/${sid()}/backups`, { method: 'POST' });
-    toast(`✓ Backup ${r.id} created (${fmtBytes(r.size)})`);
+    toast(window.tf('msg_backup_created_id', { id: r.id, size: fmtBytes(r.size) }));
     loadBackups();
   } catch (err) {
     toast(err.message, 'error');
@@ -913,7 +913,7 @@ function attachDragDrop() {
     e.preventDefault();
     counter = 0;
     body.classList.remove('drag-over');
-    if (picker?.demo) { toast('Sign in to upload', 'warn'); return; }
+    if (picker?.demo) { toast(window.t('msg_signin_upload'), 'warn'); return; }
     const items = e.dataTransfer.items;
     let files;
     if (items && items.length && items[0].webkitGetAsEntry) {
@@ -951,7 +951,7 @@ function attachDragDrop() {
 (async function init() {
   picker = await useServerPicker(document.getElementById('serverPicker'));
   picker.onChange(() => navigate('/'));
-  if (picker.demo) toast('Showing demo files — sign in to manage your real server.', 'warn');
+  if (picker.demo) toast(window.t('msg_demo_files'), 'warn');
   await navigate('/');
   attachDragDrop();
 })();

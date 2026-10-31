@@ -178,7 +178,7 @@ async function openWizard() {
   try {
     await api("/api/servers"); // any auth-gated endpoint
   } catch {
-    toast("Sign in to create a server", "warn");
+    toast(window.t("msg_signin_create"), "warn");
     setTimeout(() => (location.href = "/login.html?next=/dashboard.html"), 600);
     return;
   }
@@ -539,11 +539,11 @@ function handleJar(e) {
   const f = e.target.files[0];
   if (!f) return;
   if (f.size > 500 * 1024 * 1024) {
-    toast("File too large (max 500MB)", "error");
+    toast(window.t("msg_jar_too_large"), "error");
     return;
   }
   if (!f.name.endsWith(".jar")) {
-    toast("Only .jar files accepted", "error");
+    toast(window.t("msg_only_jar"), "error");
     return;
   }
   wizState.customJar = { name: f.name, size: f.size, file: f };
@@ -562,7 +562,7 @@ function wizPrev() {
 
 async function wizDeploy() {
   if (!wizState.name || !wizState.type || !wizState.plan) {
-    toast("Missing required fields", "error");
+    toast(window.t("msg_missing_fields"), "error");
     return;
   }
   const btn = document.querySelector(".wiz-modal .btn-primary");
@@ -570,7 +570,7 @@ async function wizDeploy() {
     btn.disabled = true;
     btn.textContent = "⏳ Deploying…";
   }
-  toast("Deploying your server... ⚡");
+  toast(window.t("msg_deploying"));
   try {
     // When Bedrock cross-play is on for a Spigot-family type, fold Geyser +
     // Floodgate into the install list (deduped) so the plugins are present on
@@ -638,7 +638,7 @@ async function wizDeploy() {
             "info",
           );
         } else {
-          toast(`Bedrock setup deferred: ${err.message}`, "warn");
+          toast(window.tf("msg_bedrock_deferred", { err: err.message }), "warn");
         }
       }
     }
