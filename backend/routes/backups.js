@@ -41,40 +41,49 @@ function isActive(s) {
   return ['starting', 'online', 'running'].includes(String(st || '').toLowerCase());
 }
 
+// Stop the server for a world operation if it is running. Returns whether it was.
+async function stopForWorldOp(s) {
+  if (!isActive(s)) return false;
+  // Graceful save-all before stopping, so chunks are flushed.
+  try { await dc.sendRcon(s, '/save-all'); } catch {}
+  await new Promise(r => setTimeout(r, 1500));
+  await dc.stopServer(s);
+  db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('offline', s.id);
+  return true;
+}
+
+// Bring a server back after a world operation, whether that succeeded or not:
+// a failed backup must not leave the owner's server down.
+async function restartAfterWorldOp(s) {
+  try {
+    await dc.startServer(s);
+    db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('starting', s.id);
+  } catch (err) {
+    console.warn(`[backups] ${s.id} restart after world op failed: ${err.message}`);
+  }
+}
+
 // POST /api/servers/:id/backups  — snapshot now (stops server if running)
 // Body: { label? } — label shows in the list (e.g. "before-big-build").
 router.post('/', async (req, res) => {
   const s = ownedServer(req, res); if (!s) return;
   if (oplock.has(s.id)) return res.status(409).json(oplock.busyPayload(s.id));
   oplock.acquire(s.id, 'backup');
+  let wasActive = false;
   try {
-    const wasActive = isActive(s);
-    if (wasActive) {
-      // Graceful save-all before stopping, so chunks are flushed.
-      try { await dc.sendRcon(s, '/save-all'); } catch {}
-      await new Promise(r => setTimeout(r, 1500));
-      await dc.stopServer(s);
-      db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('offline', s.id);
-    }
-
+    wasActive = await stopForWorldOp(s);
     const info = await bk.createBackup(s.id, {
       retention: retentionFor(s),
       label: req.body?.label,
     });
 
     audit(req.user.id, 'server.backup', s.id, req.ip, { backup_id: info.id, size: info.size });
-
-    if (wasActive) {
-      try {
-        await dc.startServer(s);
-        db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('starting', s.id);
-      } catch {}
-    }
-
     res.json({ ok: true, ...info, was_running: wasActive });
   } catch (err) {
+    console.warn(`[backups] ${s.id} backup failed: ${err.message}`);
     res.status(500).json({ error: err.message || 'Backup failed' });
   } finally {
+    if (wasActive) await restartAfterWorldOp(s);
     oplock.release(s.id);
   }
 });
@@ -91,14 +100,10 @@ router.post('/:bid/restore', async (req, res) => {
   const bid = String(req.params.bid).replace(/[^A-Za-z0-9_\-:.]/g, '');
   if (oplock.has(s.id)) return res.status(409).json(oplock.busyPayload(s.id));
   oplock.acquire(s.id, 'restore');
+  let wasActive = false;
   try {
-    const wasActive = isActive(s);
-    if (wasActive) {
-      try { await dc.sendRcon(s, '/save-all'); } catch {}
-      await new Promise(r => setTimeout(r, 1500));
-      await dc.stopServer(s);
-      db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('offline', s.id);
-    }
+    if (!bk.pathForDownload(s.id, bid)) return res.status(404).json({ error: 'Backup not found' });
+    wasActive = await stopForWorldOp(s);
 
     try {
       // protect: retention eviction must never delete the backup we are about
@@ -108,17 +113,12 @@ router.post('/:bid/restore', async (req, res) => {
 
     await bk.restoreBackup(s.id, bid);
     audit(req.user.id, 'server.restore', s.id, req.ip, { backup_id: bid });
-
-    if (wasActive) {
-      try {
-        await dc.startServer(s);
-        db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('starting', s.id);
-      } catch {}
-    }
     res.json({ ok: true, restarted: wasActive });
   } catch (err) {
+    console.warn(`[backups] ${s.id} restore ${bid} failed: ${err.message}`);
     res.status(500).json({ error: err.message || 'Restore failed' });
   } finally {
+    if (wasActive) await restartAfterWorldOp(s);
     oplock.release(s.id);
   }
 });
@@ -131,7 +131,9 @@ router.delete('/:bid', async (req, res) => {
     await bk.deleteBackup(s.id, bid);
     audit(req.user.id, 'server.backup_delete', s.id, req.ip, { backup_id: bid });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message || 'Delete failed' }); }
+  } catch (err) {
+    res.status(err.message === 'Backup not found' ? 404 : 500).json({ error: err.message || 'Delete failed' });
+  }
 });
 
 // GET /api/servers/:id/backups/:bid/download
@@ -140,8 +142,14 @@ router.get('/:bid/download', (req, res) => {
   const bid = String(req.params.bid).replace(/[^A-Za-z0-9_\-:.]/g, '');
   const p = bk.pathForDownload(s.id, bid);
   if (!p) return res.status(404).json({ error: 'Backup not found' });
-  res.setHeader('Content-Disposition', `attachment; filename="${s.name}-${bid}.zip"`);
-  fs.createReadStream(p).pipe(res);
+  // res.attachment() quotes/encodes the name (server names may hold quotes or non-ASCII).
+  res.attachment(`${s.name}-${bid}.zip`);
+  const rs = fs.createReadStream(p);
+  rs.on('error', (err) => {
+    console.warn(`[backups] download ${bid}: ${err.message}`);
+    if (!res.headersSent) res.status(500).json({ error: 'Download failed' }); else res.destroy();
+  });
+  rs.pipe(res);
 });
 
 function audit(user_id, action, resource_id, ip, metadata) {

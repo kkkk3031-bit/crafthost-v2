@@ -1486,13 +1486,19 @@ server.listen(PORT, async () => {
               await dc.sendRcon(s, "/save-all");
               await dc.sendRcon(s, "/save-off");
             } catch {}
-            await new Promise((r) => setTimeout(r, 1500));
-            const info = await bk.createBackup(s.id, {
-              retention: s.backups_count || 1,
-            });
+            let info;
             try {
-              await dc.sendRcon(s, "/save-on");
-            } catch {}
+              await new Promise((r) => setTimeout(r, 1500));
+              info = await bk.createBackup(s.id, {
+                retention: s.backups_count || 1,
+              });
+            } finally {
+              // Always re-enable saving: a failed backup must not leave the
+              // world unsaved until the next restart.
+              try {
+                await dc.sendRcon(s, "/save-on");
+              } catch {}
+            }
             console.log(
               `  ✓ ${s.name}: ${info.filename} (${(info.size / 1024 / 1024).toFixed(1)} MB)`,
             );
