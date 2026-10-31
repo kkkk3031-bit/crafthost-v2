@@ -17,4 +17,7 @@
     <string name="downloading">جارٍ تنزيل %1$s…</string>
     <string name="download_failed">فشل التنزيل</string>
     <string name="no_file_picker">لا يوجد تطبيق لاختيار الملفات</string>
+    <string name="old_webview_title">حدّث Android System WebView</string>
+    <string name="old_webview_body">إصدار WebView في هذا الهاتف هو %1$d. يحتاج CraftHost إلى الإصدار %2$d أو أحدث — حدّث «Android System WebView» (أو Chrome) من Google Play ثم أعد المحاولة.</string>
+    <string name="update_webview">فتح Google Play</string>
 </resources>

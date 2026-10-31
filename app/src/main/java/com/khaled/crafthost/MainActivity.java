@@ -45,6 +45,8 @@ public class MainActivity extends Activity {
     private static final String KEY_URL = "base_url";
     private static final int REQ_FILE = 41;
     private static final String START_PATH = "/dashboard.html";
+    /** The site's scripts use ?. and ?? (Chrome 80+); older WebViews fail to parse them. */
+    static final int MIN_WEBVIEW_MAJOR = 80;
 
     private WebView web;
     private ProgressBar progress;
@@ -175,6 +177,7 @@ public class MainActivity extends Activity {
         if ("crafthost".equals(scheme)) {             // buttons on the offline screen
             if ("retry".equals(uri.getHost())) openStart();
             else if ("server".equals(uri.getHost())) askServer(false);
+            else if ("update-webview".equals(uri.getHost())) openWebViewStore();
             return true;
         }
         Uri base = Uri.parse(baseUrl());
@@ -186,6 +189,19 @@ public class MainActivity extends Activity {
         } catch (ActivityNotFoundException ignored) {
         }
         return true;
+    }
+
+    private void openWebViewStore() {
+        String pkg = "com.google.android.webview";
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)));
+        } catch (ActivityNotFoundException e) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=" + pkg)));
+            } catch (ActivityNotFoundException ignored) {
+            }
+        }
     }
 
     private void download(String url, String ua, String disposition, String mime) {
@@ -213,18 +229,23 @@ public class MainActivity extends Activity {
 
     private void showOffline() {
         progress.setVisibility(View.GONE);
-        String html = "<!DOCTYPE html><html dir='auto'><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
+        String html = page(getString(R.string.offline_title), getString(R.string.offline_body), baseUrl(),
+                "<a class='p' href='crafthost://retry'>" + esc(getString(R.string.retry)) + "</a>"
+                        + "<a class='s' href='crafthost://server'>" + esc(getString(R.string.change_server)) + "</a>");
+        web.loadDataWithBaseURL("crafthost://offline/", html, "text/html", "utf-8", null);
+    }
+
+    /** A self-contained status page in the site's colours; buttons are crafthost:// links. */
+    private static String page(String title, String body, String code, String buttonsHtml) {
+        return "<!DOCTYPE html><html dir='auto'><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
                 + "<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;"
                 + "background:#0B1220;color:#E2E8F0;font-family:system-ui,sans-serif;text-align:center}"
                 + "div{padding:28px;max-width:360px}h2{margin:0 0 10px;font-size:20px}p{color:#94A3B8;line-height:1.5}"
                 + "a{display:block;margin:12px 0 0;padding:13px;border-radius:10px;text-decoration:none;font-weight:700}"
                 + ".p{background:#10B981;color:#04140D}.s{border:1px solid #334155;color:#E2E8F0}code{color:#64748B;font-size:12px;word-break:break-all}</style>"
-                + "</head><body><div><h2>" + esc(getString(R.string.offline_title)) + "</h2>"
-                + "<p>" + esc(getString(R.string.offline_body)) + "</p><code>" + esc(baseUrl()) + "</code>"
-                + "<a class='p' href='crafthost://retry'>" + esc(getString(R.string.retry)) + "</a>"
-                + "<a class='s' href='crafthost://server'>" + esc(getString(R.string.change_server)) + "</a>"
-                + "</div></body></html>";
-        web.loadDataWithBaseURL("crafthost://offline/", html, "text/html", "utf-8", null);
+                + "</head><body><div><h2>" + esc(title) + "</h2><p>" + esc(body) + "</p>"
+                + (code.isEmpty() ? "" : "<code>" + esc(code) + "</code>")
+                + buttonsHtml + "</div></body></html>";
     }
 
     private static String esc(String s) {
@@ -238,7 +259,33 @@ public class MainActivity extends Activity {
     }
 
     private void openStart() {
+        int major = webViewMajor();
+        if (major > 0 && major < MIN_WEBVIEW_MAJOR) {
+            showOldWebView(major);
+            return;
+        }
         web.loadUrl(baseUrl() + START_PATH);
+    }
+
+    /** Major version of the system WebView, or -1 when unknown. */
+    private static int webViewMajor() {
+        android.content.pm.PackageInfo p = WebView.getCurrentWebViewPackage();
+        return p == null ? -1 : parseMajor(p.versionName);
+    }
+
+    static int parseMajor(String versionName) {
+        if (versionName == null) return -1;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d+)").matcher(versionName.trim());
+        return m.find() ? Integer.parseInt(m.group(1)) : -1;
+    }
+
+    private void showOldWebView(int major) {
+        progress.setVisibility(View.GONE);
+        String body = getString(R.string.old_webview_body, major, MIN_WEBVIEW_MAJOR);
+        web.loadDataWithBaseURL("crafthost://offline/", page(getString(R.string.old_webview_title), body, "",
+                "<a class='p' href='crafthost://update-webview'>" + esc(getString(R.string.update_webview)) + "</a>"
+                        + "<a class='s' href='crafthost://retry'>" + esc(getString(R.string.retry)) + "</a>"),
+                "text/html", "utf-8", null);
     }
 
     /** Accepts "host", "https://host/", "https://host/dashboard.html"; returns "https://host" or null. */

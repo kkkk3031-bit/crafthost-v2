@@ -17,4 +17,7 @@
     <string name="downloading">Downloading %1$s…</string>
     <string name="download_failed">Download failed</string>
     <string name="no_file_picker">No app can pick files</string>
+    <string name="old_webview_title">Update Android System WebView</string>
+    <string name="old_webview_body">This phone\'s WebView is version %1$d. CraftHost needs version %2$d or newer — update “Android System WebView” (or Chrome) from Google Play, then try again.</string>
+    <string name="update_webview">Open Google Play</string>
 </resources>

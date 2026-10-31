@@ -27,4 +27,10 @@ public class NormalizeTest {
         assertNull(MainActivity.normalize("ftp://example.com"));
         assertNull(MainActivity.normalize(null));
     }
+    @Test public void webViewMajorParsed() {
+        assertEquals(66, MainActivity.parseMajor("66.0.3359.158"));
+        assertEquals(131, MainActivity.parseMajor(" 131.0.6778.39 "));
+        assertEquals(-1, MainActivity.parseMajor("dev"));
+        assertEquals(-1, MainActivity.parseMajor(null));
+    }
 }
