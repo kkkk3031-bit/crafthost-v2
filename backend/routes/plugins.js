@@ -8,6 +8,7 @@ const fsp = require('fs/promises');
 const crypto = require('crypto');
 const db = require('../db');
 const { authMiddleware } = require('../lib/auth');
+const storage = require('../lib/storage');
 
 const router = express.Router({ mergeParams: true });
 router.use(authMiddleware);
@@ -171,10 +172,13 @@ router.post('/install', async (req, res) => {
     const buf = await downloadCapped(file.url, MAX_JAR_BYTES);
     if (!hashMatches(buf, file.hashes))
       return res.status(502).json({ error: 'Hash mismatch — refusing to install' });
+    const full = await storage.checkRoom(s.id, buf.length);
+    if (full) return res.status(413).json({ error: full.message });
 
     const name = sanitizeName(file.filename || 'plugin.jar');
     const dirName = addonDirName(s.type);
     await fsp.writeFile(path.join(pluginsDir(s), name), buf);
+    storage.invalidate(s.id);
 
     audit(req.user.id, 'plugin.install', s.id, req.ip, { name, dir: dirName, version: version.version_number });
     res.json({ ok: true, name, dir: dirName, size: buf.length, version: version.version_number });
@@ -209,6 +213,10 @@ router.post('/install-modpack', async (req, res) => {
 
     const packFile = (version.files || []).find(f => f.primary) || version.files?.[0];
     if (!packFile?.url) return res.status(404).json({ error: 'No primary file in modpack version' });
+    // The pack's content may use at most what is left of the storage quota.
+    const room = storage.limitBytes(s.id) - await storage.usedBytes(s.id);
+    if (room <= 0) return res.status(413).json({ error: (await storage.checkRoom(s.id, 1))?.message || 'Storage limit reached' });
+    const maxTotal = Math.min(MAX_PACK_TOTAL, room);
 
     const packBuf = await downloadCapped(packFile.url, MAX_PACK_BYTES);
     if (!hashMatches(packBuf, packFile.hashes))
@@ -260,7 +268,12 @@ router.post('/install-modpack', async (req, res) => {
             const buf = await downloadCapped(u, MAX_JAR_BYTES);
             if (!hashMatches(buf, f.hashes)) continue;
             totalBytes += buf.length;
-            if (totalBytes > MAX_PACK_TOTAL) { capErr = new HttpError(413, 'Modpack content exceeds 1 GB cap'); return; }
+            if (totalBytes > maxTotal) {
+              capErr = new HttpError(413, maxTotal < MAX_PACK_TOTAL
+                ? 'Modpack does not fit in the server\'s remaining storage'
+                : 'Modpack content exceeds 1 GB cap');
+              return;
+            }
             await fsp.mkdir(path.dirname(dest), { recursive: true });
             await fsp.writeFile(dest, buf);
             wrote = true;
@@ -271,6 +284,7 @@ router.post('/install-modpack', async (req, res) => {
       }
     }
     await Promise.all([worker(), worker(), worker(), worker()]);
+    storage.invalidate(s.id);
     if (capErr) throw capErr;
 
     // Extract overrides/ then server-overrides/ (the spec's server-specific

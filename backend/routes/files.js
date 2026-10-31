@@ -7,6 +7,7 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const multer = require("multer");
 const archiver = null; // optional, not required for v1
+const storage = require("../lib/storage");
 const db = require("../db");
 const { authMiddleware } = require("../lib/auth");
 const uploadErrors = require("../lib/upload-errors");
@@ -180,10 +181,13 @@ router.put("/write", async (req, res) => {
       return res.status(400).json({ error: "content required" });
     if (content.length > MAX_EDITABLE_BYTES)
       return res.status(413).json({ error: "Too large" });
+    const full = await storage.checkRoom(s.id, Buffer.byteLength(content));
+    if (full) return res.status(413).json({ error: full.message });
     const root = serverRoot(s.id);
     const target = safeJoin(root, p);
     await fsp.mkdir(path.dirname(target), { recursive: true });
     await fsp.writeFile(target, content, "utf8");
+    storage.invalidate(s.id);
     audit(req.user.id, "file.write", s.id, req.ip, { path: p });
     res.json({ ok: true, path: relTo(root, target) });
   } catch (err) {
@@ -307,9 +311,24 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_BYTES, files: 200 },
 });
 
-router.post("/upload", upload.array("files", 200), (req, res) => {
+// Refuse before multer writes anything when the upload would not fit.
+// Content-Length (the whole multipart body) slightly overstates the files.
+async function uploadQuota(req, res, next) {
   const s = ownedServer(req, res);
   if (!s) return;
+  try {
+    const full = await storage.checkRoom(s.id, parseInt(req.get("content-length") || "0", 10));
+    if (full) return res.status(413).json({ error: full.message });
+  } catch (err) {
+    console.warn("[files] quota check failed:", err.message);
+  }
+  next();
+}
+
+router.post("/upload", uploadQuota, upload.array("files", 200), (req, res) => {
+  const s = ownedServer(req, res);
+  if (!s) return;
+  storage.invalidate(s.id);
   const root = serverRoot(s.id);
   const uploaded = (req.files || []).map((f) => ({
     name: decodeRel(f.originalname),

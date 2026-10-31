@@ -2286,7 +2286,10 @@ router.post(
     try {
       // 1) Validate + unpack while the server keeps running: a bad zip must
       // not cost the owner any downtime or touch the live world.
-      const { map, restored } = await wi.plan(upload);
+      const { map, restored, unpacked } = await wi.plan(upload);
+      // The current world is replaced, so it does not count against the quota.
+      const full = await require("../lib/storage").checkRoom(s.id, unpacked, { exclude: wi.DIMS });
+      if (full) throw full;
       await wi.extract(upload, map, staging);
 
       // 2) Stop, snapshot the current world (an import is irreversible
@@ -2310,6 +2313,7 @@ router.post(
       }
       await wi.swapIn(root, staging);
       await fsp.rm(staging, { recursive: true, force: true }).catch(() => {});
+      require("../lib/storage").invalidate(s.id);
 
       audit(req.user.id, "server.world_import", s.id, req.ip, {
         size: req.file.size,
