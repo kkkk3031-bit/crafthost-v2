@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing from a gitignored keystore.properties; without it
+// assembleRelease produces an unsigned APK.
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+// Address offered on first launch (editable in the app). Override with
+// -PdefaultUrl=https://... when building.
+def defaultUrl = project.findProperty('defaultUrl') ?: 'https://eventually-vice-ddr-ingredients.trycloudflare.com'
+
+android {
+    namespace 'com.khaled.crafthost'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.khaled.crafthost"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+        buildConfigField "String", "DEFAULT_URL", "\"${defaultUrl}\""
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildFeatures {
+        buildConfig true
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}

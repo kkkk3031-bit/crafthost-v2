@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CraftHost</string>
+    <string name="server_title">عنوان خادم CraftHost</string>
+    <string name="server_hint">https://your-crafthost-site</string>
+    <string name="server_help">عنوان موقع CraftHost الخاص بك. يتغير كلما أُعيد تشغيل النفق — حدّثه من هنا.</string>
+    <string name="save">حفظ</string>
+    <string name="cancel">إلغاء</string>
+    <string name="invalid_url">أدخل عنواناً كاملاً يبدأ بـ https://</string>
+    <string name="exit">خروج</string>
+    <string name="change_server">تغيير الخادم</string>
+    <string name="reload">إعادة التحميل</string>
+    <string name="menu_title">CraftHost</string>
+    <string name="offline_title">تعذّر الوصول إلى CraftHost</string>
+    <string name="offline_body">لم يستجب الموقع. تحقق من اتصالك — أو ربما تغيّر العنوان.</string>
+    <string name="retry">أعد المحاولة</string>
+    <string name="downloading">جارٍ تنزيل %1$s…</string>
+    <string name="download_failed">فشل التنزيل</string>
+    <string name="no_file_picker">لا يوجد تطبيق لاختيار الملفات</string>
+</resources>
