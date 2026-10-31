@@ -217,7 +217,11 @@ const BOOT_TS = Date.now();
 // the Railway volume dies. 404s when BACKUP_KEY isn't configured.
 app.get("/api/platform/db-backup", async (req, res) => {
   const key = process.env.BACKUP_KEY;
-  if (!key || req.get("X-Backup-Key") !== key) return res.status(404).end();
+  const given = Buffer.from(String(req.get("X-Backup-Key") || ""));
+  const want = Buffer.from(String(key || ""));
+  // Constant-time compare (length leak only), so the key can't be guessed byte by byte.
+  if (!key || given.length !== want.length || !require("crypto").timingSafeEqual(given, want))
+    return res.status(404).end();
   const os = require("os");
   const fsp = require("fs/promises");
   const zlib = require("zlib");
@@ -414,6 +418,9 @@ app.get("/*splat", (req, res, next) => {
 
 // WebSocket for live logs
 const wss = new WebSocketServer({ noServer: true });
+// Open console sockets per user id (see the cap in the upgrade handler).
+const wsPerUser = new Map();
+const WS_MAX_PER_USER = parseInt(process.env.WS_MAX_PER_USER || "8", 10);
 
 server.on("upgrade", (req, socket, head) => {
   const { pathname, query } = url.parse(req.url, true);
@@ -457,7 +464,21 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
 
+  // Each socket runs a stats timer and a log listener: cap them per user.
+  const open = wsPerUser.get(user.id) || 0;
+  if (open >= WS_MAX_PER_USER) {
+    socket.write("HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
   wss.handleUpgrade(req, socket, head, async (ws) => {
+    // Counted only once the handshake succeeded ('close' then always follows).
+    wsPerUser.set(user.id, (wsPerUser.get(user.id) || 0) + 1);
+    // Heartbeat: a client that vanished without a FIN (phone off the network)
+    // would otherwise keep its timers until TCP gives up, hours later.
+    ws.isAlive = true;
+    ws.on("pong", () => (ws.isAlive = true));
     ws.send(JSON.stringify({ type: "connected", server: srv.name }));
     const attach = await dc.attachLogStream(srv, (line) => {
       if (ws.readyState === 1) ws.send(JSON.stringify({ type: "log", line }));
@@ -480,9 +501,20 @@ server.on("upgrade", (req, socket, head) => {
     ws.on("close", () => {
       clearInterval(statTimer);
       attach.stop?.();
+      const n = (wsPerUser.get(user.id) || 1) - 1;
+      if (n > 0) wsPerUser.set(user.id, n); else wsPerUser.delete(user.id);
     });
   });
 });
+
+// Terminate sockets that missed a ping (their 'close' handler then cleans up).
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!ws.isAlive) { ws.terminate(); continue; }
+    ws.isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, parseInt(process.env.WS_PING_MS || "30000", 10)).unref();
 
 const PORT = parseInt(process.env.PORT || "4000", 10);
 // Stop Minecraft JVMs with the backend so none are left orphaned on a port.

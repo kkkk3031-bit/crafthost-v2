@@ -1892,6 +1892,8 @@ async function attachLogStream(containerId, onLine) {
   return {
     stop: () => {
       set.delete(onLine);
+      // Drop the empty set unless a running process still shares it.
+      if (!set.size && running.get(id)?.listeners !== set) persistentListeners.delete(id);
       const cur = running.get(id);
       if (cur?.listeners) cur.listeners.delete(onLine);
     },
