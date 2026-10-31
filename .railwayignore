@@ -7,3 +7,4 @@ uploads
 jars
 *.log
 .DS_Store
+android

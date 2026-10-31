@@ -11,3 +11,4 @@ jars
 *.log
 README.md
 deploy.sh
+android
