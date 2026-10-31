@@ -47,7 +47,7 @@ document.getElementById('forgotForm').addEventListener('submit', async (e) => {
   const fd = new FormData(e.target);
   const btn = e.target.querySelector('button[type="submit"]');
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Sending…';
+  btn.disabled = true; btn.textContent = window.t('ui_sending');
   try {
     await api('/api/auth/forgot', { method: 'POST', body: { email: fd.get('email') } });
     // The reset link is issued out-of-band (Discord) — never shown here, so

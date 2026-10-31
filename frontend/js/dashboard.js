@@ -460,7 +460,7 @@ function openDeleteConfirm(sid, name) {
   });
   btn.onclick = async () => {
     btn.disabled = true;
-    btn.textContent = "⏳ Deleting…";
+    btn.textContent = window.t("ui_deleting");
     try {
       await api(`/api/servers/${sid}`, { method: "DELETE" });
       toast(window.t("msg_server_deleted"));
@@ -515,7 +515,7 @@ async function openLogs(sid, name) {
       pre.scrollTop = pre.scrollHeight;
     } catch (err) {
       const pre = document.getElementById("logsContent");
-      if (pre) pre.textContent = "Failed to load: " + err.message;
+      if (pre) pre.textContent = window.tf("ui_failed_load", { err: err.message });
     }
   }
   function clearAuto() {
@@ -684,7 +684,7 @@ async function openSwapJar(sid, curType, curVer, planId) {
   async function loadVer() {
     const type = document.getElementById("sjType").value;
     const sel = document.getElementById("sjVersion");
-    sel.innerHTML = "<option>Loading…</option>";
+    sel.innerHTML = `<option>${window.t("ui_loading")}</option>`;
     try {
       const r = await fetch(
         `/api/versions/${encodeURIComponent(type)}?limit=50`,
@@ -736,19 +736,19 @@ async function openSwapJar(sid, curType, curVer, planId) {
         // New selection invalidates a pending downgrade confirmation.
         forceNext = false;
         document.getElementById("sjError").innerHTML = "";
-        document.getElementById("sjApply").textContent = "Apply";
+        document.getElementById("sjApply").textContent = window.t("ui_apply");
         updateWarn();
       };
       updateWarn();
     } catch {
-      sel.innerHTML = "<option>Failed to fetch</option>";
+      sel.innerHTML = `<option>${window.t("ui_failed_fetch")}</option>`;
     }
   }
   document.getElementById("sjType").onchange = () => {
     // Changing the picker invalidates a pending downgrade confirmation.
     forceNext = false;
     document.getElementById("sjError").innerHTML = "";
-    document.getElementById("sjApply").textContent = "Apply";
+    document.getElementById("sjApply").textContent = window.t("ui_apply");
     loadVer();
   };
   // Set after an unsafe_downgrade 409: the next Apply click resends with
@@ -764,7 +764,7 @@ async function openSwapJar(sid, curType, curVer, planId) {
     const version = document.getElementById("sjVersion").value;
     const btn = document.getElementById("sjApply");
     btn.disabled = true;
-    btn.textContent = "⏳ Swapping…";
+    btn.textContent = window.t("ui_swapping");
     sjError("");
     try {
       await api(`/api/servers/${sid}/swap-jar`, {
@@ -792,7 +792,7 @@ async function openSwapJar(sid, curType, curVer, planId) {
           `<strong>⚠ Older version selected</strong><p>${escapeHtml(err.message)}</p>`,
         );
         btn.disabled = false;
-        btn.textContent = "⚠ Downgrade anyway";
+        btn.textContent = window.t("ui_downgrade_anyway");
         return;
       }
       forceNext = false;
@@ -813,7 +813,7 @@ async function openSwapJar(sid, curType, curVer, planId) {
         sjError(`<p>${escapeHtml(err.message || "Swap failed")}</p>`);
       }
       btn.disabled = false;
-      btn.textContent = "Apply";
+      btn.textContent = window.t("ui_apply");
     }
   };
   loadVer();
@@ -909,7 +909,7 @@ async function openBackups(sid, name) {
         })
         .join("");
     } catch (err) {
-      host.innerHTML = `<div class="text-muted">Could not load backups — ${escapeHtml(err.message)}</div>`;
+      host.innerHTML = `<div class="text-muted">${escapeHtml(window.tf("ui_backups_load_failed", { err: err.message }))}</div>`;
     }
   }
 
@@ -1153,7 +1153,7 @@ async function openSettings(sid, name) {
     note.className = "text-muted";
     note.style.cssText =
       "font-size:12px;margin-top:10px;color:var(--slate-400);";
-    note.textContent = `Server hasn't been started yet — saving will create the initial config.`;
+    note.textContent = window.t("ui_not_started_note");
     document.getElementById("setForm").appendChild(note);
   }
   // ── Server icon ───────────────────────────────────────────────────────────
@@ -1190,17 +1190,17 @@ async function openSettings(sid, name) {
       if (!file) return;
       const status = document.getElementById("set_icon_status");
       if (file.size > 256 * 1024) {
-        status.textContent = "✗ PNG too large (max 256 KB)";
+        status.textContent = window.t("ui_png_too_large");
         status.style.color = "var(--red, #ef4444)";
         return;
       }
       if (!/^image\/png$/i.test(file.type) && !/\.png$/i.test(file.name)) {
-        status.textContent = "✗ Must be a PNG";
+        status.textContent = window.t("ui_must_png");
         status.style.color = "var(--red, #ef4444)";
         return;
       }
       status.style.color = "var(--slate-300)";
-      status.textContent = "Uploading…";
+      status.textContent = window.t("ui_uploading");
       const fd = new FormData();
       fd.append("icon", file, file.name);
       try {
@@ -1212,7 +1212,7 @@ async function openSettings(sid, name) {
         const body = await r.json().catch(() => ({}));
         if (r.ok && body.ok) {
           status.style.color = "var(--emerald)";
-          status.textContent = `✓ Saved (${(body.size / 1024).toFixed(1)} KB) — restart to apply`;
+          status.textContent = window.tf("ui_icon_saved", { kb: (body.size / 1024).toFixed(1) });
           setIconState(true);
         } else {
           status.style.color = "var(--red, #ef4444)";
@@ -1230,7 +1230,7 @@ async function openSettings(sid, name) {
       if (r.ok) {
         setIconState(false);
         status.style.color = "var(--emerald)";
-        status.textContent = "✓ Icon removed — restart to apply";
+        status.textContent = window.t("ui_icon_removed");
       }
     } catch (err) {
       status.style.color = "var(--red, #ef4444)";
@@ -1389,7 +1389,7 @@ async function openSettings(sid, name) {
     };
     const btn = document.getElementById("set_save");
     btn.disabled = true;
-    btn.textContent = "⏳ Saving…";
+    btn.textContent = window.t("ui_saving");
     try {
       const r = await api(`/api/servers/${sid}`, { method: "PATCH", body });
       toast(
@@ -1402,7 +1402,7 @@ async function openSettings(sid, name) {
     } catch (err) {
       toast(err.message, "error");
       btn.disabled = false;
-      btn.textContent = "Save";
+      btn.textContent = window.t("save");
     }
   };
 }
@@ -1877,14 +1877,14 @@ async function refreshHealthCheck() {
       ${!data.summary.total ? `<span class="hc-pill">${t("hc_no_servers")}</span>` : ""}
     `;
     if (!data.servers.length) {
-      body.innerHTML = `<div class="hc-empty">You haven't created a server yet. Hit <strong>+ Create Server</strong> to spin one up.</div>`;
+      body.innerHTML = `<div class="hc-empty">${window.t("ui_hc_none")}</div>`;
     } else {
       body.innerHTML = data.servers.map(renderHealthCard).join("");
     }
     status.textContent = t("hc_polling").replace("{t}", new Date(data.checked_at).toLocaleTimeString(document.documentElement.lang || undefined));
   } catch (err) {
-    body.innerHTML = `<div class="hc-empty hc-error-text">Failed to load health check: ${escapeHtmlD(err.message || "unknown error")}</div>`;
-    status.textContent = `Error · retrying in 10s`;
+    body.innerHTML = `<div class="hc-empty hc-error-text">${escapeHtmlD(window.tf("ui_hc_failed", { err: err.message || "unknown error" }))}</div>`;
+    status.textContent = window.t("ui_hc_retry");
   }
 }
 function renderHealthCard(s) {
@@ -2015,10 +2015,10 @@ async function openCloneDialog(sourceId, sourceName) {
     const btn = document.getElementById("cloneSubmit");
     const status = document.getElementById("cloneStatus");
     btn.disabled = true;
-    btn.innerHTML = '<span class="ed-spin"></span> Cloning…';
+    btn.innerHTML = '<span class="ed-spin"></span> ' + window.t('ui_cloning');
     status.style.display = "block";
     status.style.color = "var(--slate-300)";
-    status.textContent = "Creating server row & copying files…";
+    status.textContent = window.t("ui_clone_copying");
     try {
       const body = {
         source_id: sourceId,
@@ -2031,7 +2031,7 @@ async function openCloneDialog(sourceId, sourceName) {
       const r = await api("/api/servers/clone", { method: "POST", body });
       const kb = Math.round((r.copy_stats?.bytes || 0) / 1024);
       status.style.color = "var(--emerald)";
-      status.textContent = `✓ Cloned · ${r.copy_stats?.files || 0} file(s), ${kb} KB · ${r.auto_started ? "starting" : "created (manual start)"}`;
+      status.textContent = window.tf("ui_cloned", { files: r.copy_stats?.files || 0, kb, state: window.t(r.auto_started ? "ui_clone_starting" : "ui_clone_manual") });
       toast(window.t("msg_server_cloned"));
       setTimeout(() => {
         closeCloneDialog();
@@ -2041,7 +2041,7 @@ async function openCloneDialog(sourceId, sourceName) {
       status.style.color = "var(--red, #ef4444)";
       status.textContent = "✗ " + (err.message || "Clone failed");
       btn.disabled = false;
-      btn.innerHTML = "📑 Retry";
+      btn.innerHTML = "📑 " + window.t("ui_retry");
     }
   };
 }
@@ -2152,7 +2152,7 @@ async function openWorldImport(sid, sname) {
     const sid = document.getElementById("wiSubmit").dataset.sid;
     const btn = document.getElementById("wiSubmit");
     btn.disabled = true;
-    btn.innerHTML = '<span class="ed-spin"></span> Uploading…';
+    btn.innerHTML = '<span class="ed-spin"></span> ' + window.t('ui_uploading');
     document.getElementById("wiProgress").style.display = "block";
     document.getElementById("wiStatus").style.display = "none";
 
@@ -2181,7 +2181,7 @@ async function openWorldImport(sid, sname) {
           if (xhr.status >= 200 && xhr.status < 300 && r.ok) {
             const dims = Object.keys(r.restored || {}).join(", ");
             status.style.color = "var(--emerald)";
-            status.textContent = `✓ World imported (${dims || "world"}) — server restarting`;
+            status.textContent = window.tf("ui_world_imported", { dims: dims || "world" });
             toast(window.t("msg_world_imported"));
             setTimeout(() => {
               closeWorldImport();
@@ -2191,13 +2191,13 @@ async function openWorldImport(sid, sname) {
             status.style.color = "var(--red, #ef4444)";
             status.textContent = "✗ " + (r.error || `HTTP ${xhr.status}`);
             btn.disabled = false;
-            btn.innerHTML = "🌍 Retry";
+            btn.innerHTML = "🌍 " + window.t("ui_retry");
           }
         } catch {
           status.style.color = "var(--red, #ef4444)";
           status.textContent = `✗ HTTP ${xhr.status}`;
           btn.disabled = false;
-          btn.innerHTML = "🌍 Retry";
+          btn.innerHTML = "🌍 " + window.t("ui_retry");
         }
         resolve();
       };
@@ -2205,9 +2205,9 @@ async function openWorldImport(sid, sname) {
         const status = document.getElementById("wiStatus");
         status.style.display = "block";
         status.style.color = "var(--red, #ef4444)";
-        status.textContent = "✗ Network error";
+        status.textContent = window.t("ui_network_error");
         btn.disabled = false;
-        btn.innerHTML = "🌍 Retry";
+        btn.innerHTML = "🌍 " + window.t("ui_retry");
         resolve();
       };
       xhr.send(fd);
@@ -2283,7 +2283,7 @@ function closeBedrockModal() {
 async function renderBedrockStatus(sid, sname) {
   const body = document.getElementById("bedrockBody");
   if (!body) return;
-  body.innerHTML = `<div style="color:var(--slate-400);text-align:center;padding:16px 0;">Loading…</div>`;
+  body.innerHTML = `<div style="color:var(--slate-400);text-align:center;padding:16px 0;">${window.t("ui_loading")}</div>`;
   try {
     // Get server (for playit_enabled + host/port)
     const list = await api("/api/servers");
@@ -2432,7 +2432,7 @@ async function renderBedrockStatus(sid, sname) {
           bedrockPollTimer = null;
           const node = document.getElementById("bedrockPoll");
           if (node)
-            node.innerHTML = `<span style="color:var(--rose);">✗ Claim ${s2.status}. Click "Connect" to try again.</span>`;
+            node.innerHTML = `<span style="color:var(--rose);">${escapeHtml(window.tf("ui_claim_failed", { status: s2.status }))}</span>`;
         } else {
           const node = document.getElementById("bedrockPoll");
           if (node)
@@ -2457,7 +2457,7 @@ async function renderBedrockStatus(sid, sname) {
         <button class="btn btn-primary btn-sm" id="bedrockEnableBtn" onclick="enableBedrock('${escapeHtml(sid)}', '${jsArg(sname)}')">${t("br_enable")}</button>
       </div>`;
   } catch (err) {
-    body.innerHTML = `<div style="color:var(--rose);">Error: ${escapeHtml(err.message)}</div>`;
+    body.innerHTML = `<div style="color:var(--rose);">${escapeHtml(window.tf("ui_error", { err: err.message }))}</div>`;
   }
 }
 
@@ -2468,7 +2468,7 @@ async function enableBedrock(sid, sname) {
   const btn = document.getElementById("bedrockEnableBtn");
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "⏳ Enabling…";
+    btn.textContent = window.t("ui_enabling");
   }
   return doEnableBedrock(sid, sname, false);
 }

@@ -124,14 +124,14 @@ async function loadLivePublic() {
     }).join('');
   } catch (err) {
     const grid = document.getElementById('livePublicGrid');
-    if (grid) grid.innerHTML = `<div class="card" style="padding:40px;text-align:center;color:var(--text-muted);grid-column:1/-1;">Could not load live servers (${err.message}).</div>`;
+    if (grid) grid.innerHTML = `<div class="card" style="padding:40px;text-align:center;color:var(--text-muted);grid-column:1/-1;">${String(window.tf('ui_live_load_failed', { err: err.message })).replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';')}</div>`;
   }
 }
 
 window.copyJoin = (addr, btn) => {
   navigator.clipboard?.writeText(addr);
   const orig = btn.textContent;
-  btn.textContent = '✓ Copied!';
+  btn.textContent = window.t('ui_copied');
   setTimeout(() => { btn.textContent = orig; }, 1800);
 };
 

@@ -536,7 +536,7 @@ function renderTree(items) {
 function renderFiles(items) {
   const body = document.getElementById('fmBody');
   if (!items.length) {
-    body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--slate-400);">Empty folder</div>`;
+    body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--slate-400);">${window.t('ui_empty_folder')}</div>`;
     return;
   }
   body.innerHTML = items.map((f, i) => `
@@ -759,14 +759,14 @@ async function loadBackups() {
   const list = document.getElementById('bkList');
   const summary = document.getElementById('bkSummary');
   if (picker?.demo) {
-    summary.textContent = 'Sign in to view real backups.';
+    summary.textContent = window.t('ui_signin_backups');
     list.innerHTML = list.children[0].outerHTML + `<div class="fm-row" style="padding:24px;justify-content:center;"><span class="text-muted">Demo mode — no backups</span></div>`;
     return;
   }
   try {
     const r = await api(`/api/servers/${sid()}/backups`);
     const items = r.backups || [];
-    summary.textContent = `${items.length} backup${items.length === 1 ? '' : 's'} · ${fmtBytes(r.used_bytes || 0)} used · retention: ${r.retention} max`;
+    summary.textContent = window.tf('ui_backups_summary', { n: items.length, used: fmtBytes(r.used_bytes || 0), max: r.retention });
     if (!items.length) {
       list.innerHTML = list.children[0].outerHTML + `<div class="fm-row" style="padding:24px;justify-content:center;"><span class="text-muted">No backups yet — click "Backup Now"</span></div>`;
       return;
@@ -789,7 +789,7 @@ async function loadBackups() {
       btn.addEventListener('click', () => doBackupAction(btn.dataset.act, bid));
     });
   } catch (err) {
-    summary.textContent = 'Failed: ' + err.message;
+    summary.textContent = window.tf('ui_failed', { err: err.message });
   }
 }
 
@@ -842,9 +842,9 @@ async function loadProps() {
     check('p_pvp', p['pvp'] ?? 'true');
     check('p_hardcore', p['hardcore'] ?? 'false');
     check('p_whitelist', p['white-list'] ?? 'false');
-    document.getElementById('propsHint').textContent = `(loaded ${Object.keys(p).length} keys from server.properties)`;
+    document.getElementById('propsHint').textContent = window.tf('ui_props_loaded', { n: Object.keys(p).length });
   } catch (err) {
-    document.getElementById('propsHint').textContent = 'Failed: ' + err.message;
+    document.getElementById('propsHint').textContent = window.tf('ui_failed', { err: err.message });
   }
 }
 
@@ -864,7 +864,7 @@ document.getElementById('p_save').addEventListener('click', async () => {
   };
   const btn = document.getElementById('p_save');
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ Saving…';
+  btn.disabled = true; btn.textContent = window.t('ui_saving');
   try {
     const r = await api(`/api/servers/${sid()}`, { method: 'PATCH', body });
     toast(r.restarted ? '✓ Saved + restarting' : '✓ Saved (restart needed to apply)');
@@ -877,7 +877,7 @@ document.getElementById('bkNowBtn').addEventListener('click', async () => {
   if (picker?.demo) { toast(window.t('msg_signin_backup'), 'warn'); return; }
   const btn = document.getElementById('bkNowBtn');
   const orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ Snapshotting…';
+  btn.disabled = true; btn.textContent = window.t('ui_snapshotting');
   try {
     const r = await api(`/api/servers/${sid()}/backups`, { method: 'POST' });
     toast(window.tf('msg_backup_created_id', { id: r.id, size: fmtBytes(r.size) }));
