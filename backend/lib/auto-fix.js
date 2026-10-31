@@ -204,6 +204,21 @@ async function fixWorld(server) {
   };
 }
 
+// The plugin's declared name (plugin.yml / paper-plugin.yml), or null.
+function declaredPluginName(jarPath) {
+  try {
+    const AdmZip = require("adm-zip");
+    const zip = new AdmZip(jarPath);
+    for (const f of ["paper-plugin.yml", "plugin.yml"]) {
+      const e = zip.getEntry(f);
+      if (!e) continue;
+      const m = /^name:\s*["']?([^"'\r\n#]+?)["']?\s*$/m.exec(zip.readAsText(e));
+      if (m) return m[1].trim();
+    }
+  } catch {}
+  return null;
+}
+
 async function fixPlugin(server, pluginName) {
   // Disable the offending plugin so the server can boot. We don't delete it —
   // the user can re-enable from the file manager.
@@ -211,24 +226,26 @@ async function fixPlugin(server, pluginName) {
   const pluginsDir = path.join(DATA_DIR, server.id, "plugins");
   if (!fs.existsSync(pluginsDir)) return { skipped: "no plugins dir" };
   const wanted = pluginName.toLowerCase();
-  const entries = await fsp.readdir(pluginsDir);
-  let disabled = null;
-  for (const e of entries) {
-    const base = e.toLowerCase().replace(/\.jar$/, "");
-    if (
-      e.toLowerCase().endsWith(".jar") &&
-      (base === wanted || base.startsWith(wanted) || wanted.startsWith(base))
-    ) {
-      const from = path.join(pluginsDir, e);
-      const to = path.join(pluginsDir, e + ".disabled");
-      await fsp.rename(from, to);
-      disabled = e;
-      break;
-    }
+  const jars = (await fsp.readdir(pluginsDir)).filter((e) => e.toLowerCase().endsWith(".jar"));
+
+  // 1) The jar whose plugin.yml declares exactly this name.
+  let target = jars.find(
+    (e) => (declaredPluginName(path.join(pluginsDir, e)) || "").toLowerCase() === wanted,
+  );
+  // 2) Otherwise a filename match, but only when it is unambiguous: prefix
+  // matching alone once disabled WorldEdit for a "WorldEditSUI" crash.
+  if (!target) {
+    const candidates = jars.filter((e) => {
+      const base = e.toLowerCase().replace(/\.jar$/, "");
+      return base === wanted || base.startsWith(wanted + "-") || base.startsWith(wanted + "_") || base.startsWith(wanted + "+");
+    });
+    if (candidates.length === 1) target = candidates[0];
+    else if (candidates.length > 1)
+      return { skipped: `"${pluginName}" matches ${candidates.length} jars; not guessing` };
   }
-  return disabled
-    ? { disabled }
-    : { skipped: `no matching .jar for "${pluginName}"` };
+  if (!target) return { skipped: `no matching .jar for "${pluginName}"` };
+  await fsp.rename(path.join(pluginsDir, target), path.join(pluginsDir, target + ".disabled"));
+  return { disabled: target };
 }
 
 // ── Public entrypoint ─────────────────────────────────────────────────────────
@@ -292,4 +309,4 @@ async function tryAutoFix(server, logLines, deps) {
   };
 }
 
-module.exports = { tryAutoFix, diagnose, PATTERNS };
+module.exports = { tryAutoFix, diagnose, PATTERNS, fixPlugin };
