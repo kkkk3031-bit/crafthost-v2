@@ -25,14 +25,14 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
-    "playwright": "^1.62.1",
     "rcon-client": "^4.2.5",
     "ws": "^8.21.3",
     "yauzl": "^3.4.0",
     "yazl": "^3.3.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "playwright": "^1.64.1"
   },
   "engines": {
     "node": ">=20"
