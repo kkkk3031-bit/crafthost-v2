@@ -1,0 +1,32 @@
+import { chromium } from 'playwright';
+const BASE = process.env.BASE;
+const browser = await chromium.launch({ headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+await ctx.addInitScript(() => localStorage.setItem('crafthost.lang', 'ar'));
+const page = await ctx.newPage();
+const errs = []; page.on('pageerror', e => errs.push(e.message));
+// signed out (demo)
+await page.goto(BASE + '/marketplace.html'); await page.waitForTimeout(3500);
+console.log('demo feed btns:', await page.locator('.mp-feed-btn').count(), 'cards:', await page.locator('.mp-feed-card').count());
+console.log('demo top-pick labels:', await page.locator('.mp-pick-btn').first().textContent(), '|', await page.locator('.mp-section-label').nth(1).innerText());
+// signed in with a paper server
+const sfx = Math.random().toString(16).slice(2, 8), pw = 'Pw_' + sfx + 'abcdef12';
+const reg = await page.request.post(BASE + '/api/auth/register', { data: { username: 'ui' + sfx, email: `ui+${sfx}@t.io`, password: pw } });
+const tok = (await reg.json()).token;
+const H = { Authorization: 'Bearer ' + tok };
+await page.request.post(BASE + '/api/servers', { headers: H, data: { name: 'ui', type: 'paper', version: '1.21.1', plan: 'free', skipAutoStart: true } });
+await page.evaluate(t => { localStorage.setItem('crafthost.token', t); }, tok);
+await page.goto(BASE + '/marketplace.html'); await page.waitForTimeout(4000);
+console.log('signed feed btns:', await page.locator('.mp-feed-btn').count(), 'compat:', await page.locator('#mpCompat').innerText().catch(() => '-'));
+await page.fill('#mpSearch', 'luckperms'); await page.waitForTimeout(2500);
+console.log('search sub:', await page.locator('#searchSub').innerText(), 'search btns:', await page.locator('#searchRow .mp-feed-btn').count());
+await page.locator('#searchRow .mp-feed-btn').first().click(); await page.waitForTimeout(400);
+console.log('toast 1:', await page.locator('.toast').allInnerTexts());
+await page.waitForSelector('.toast:has-text("✓")', { timeout: 30000 }).catch(() => {});
+console.log('toast 2:', await page.locator('.toast').allInnerTexts());
+const sid = (await (await page.request.get(BASE + '/api/servers', { headers: H })).json()).servers[0].id;
+console.log('installed:', (await (await page.request.get(BASE + `/api/servers/${sid}/plugins`, { headers: H })).json()).plugins.map(p => p.name));
+if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+console.log('page errors:', errs);
+await page.request.delete(BASE + '/api/auth/me', { headers: H, data: { password: pw, confirm: 'DELETE' } });
+await browser.close();

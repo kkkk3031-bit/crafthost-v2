@@ -186,6 +186,25 @@
         text-decoration: none;
         color: inherit;
       }
+      .mp-feed-link {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex: 1;
+        min-width: 0;
+        color: inherit;
+        text-decoration: none;
+      }
+      .mp-feed-btn {
+        flex-shrink: 0;
+        padding: 4px 9px;
+        font-size: 11px;
+      }
+      .mp-compat {
+        margin: 6px 0 0;
+        font-size: 11px;
+        color: var(--amber, #f59e0b);
+      }
       .mp-feed-card:hover {
         transform: translateY(-1px);
         background: var(--slate-700);
@@ -340,9 +359,10 @@
               style="max-width: 460px; width: 100%;"
             />
           </div>
+          <p class="mp-compat" id="mpCompat" hidden></p>
           <div class="mp-section" id="searchSection" style="display: none;">
             <span class="mp-section-label"
-              ><span class="msr">extension</span> Search Results</span
+              ><span class="msr">extension</span> <span data-i18n="mp_search_results">Search Results</span></span
             >
             <span class="mp-section-sub" id="searchSub">Live · Modrinth</span>
           </div>
@@ -363,26 +383,26 @@
 
           <div class="mp-section">
             <span class="mp-section-label"
-              ><span class="msr">local_fire_department</span> Trending Now</span
+              ><span class="msr">local_fire_department</span> <span data-i18n="mp_trending">Trending Now</span></span
             >
-            <span class="mp-section-sub"
+            <span class="mp-section-sub" data-i18n="mp_trending_sub"
               >Live · most downloaded on Modrinth</span
             >
           </div>
           <div class="mp-feed" id="trendingRow">
-            <div class="mp-feed-loading">Loading…</div>
+            <div class="mp-feed-loading" data-i18n="mp_loading">Loading…</div>
           </div>
 
           <div class="mp-section">
             <span class="mp-section-label"
-              ><span class="msr">auto_awesome</span> Recently Updated</span
+              ><span class="msr">auto_awesome</span> <span data-i18n="mp_recent">Recently Updated</span></span
             >
-            <span class="mp-section-sub"
+            <span class="mp-section-sub" data-i18n="mp_recent_sub"
               >Live · fresh releases on Modrinth</span
             >
           </div>
           <div class="mp-feed" id="recentRow">
-            <div class="mp-feed-loading">Loading…</div>
+            <div class="mp-feed-loading" data-i18n="mp_loading">Loading…</div>
           </div>
 
           <p
@@ -392,6 +412,7 @@
               font-size: 11.5px;
               color: var(--slate-500);
             "
+            data-i18n="mp_signin_hint"
           >
             Want to install? Sign in and create a server first.
           </p>
@@ -570,10 +591,10 @@
     <div class="mp-pick" style="--c:${p.c};" data-slug="${p.slug}" data-name="${escapeHtml(p.name)}">
       <div class="mp-pick-icon" data-letter="${escapeHtml((p.name || "?")[0])}"><img src="${p.img}" alt="" loading="lazy" onerror="this.parentElement.classList.add('mp-pick-icon-fb');this.remove();" /></div>
       <div class="mp-pick-text">
-        <div class="mp-pick-name">${p.name}</div>
-        <div class="mp-pick-desc">${escapeHtml(p.desc)}</div>
+        <div class="mp-pick-name">${escapeHtml(p.name)}</div>
+        <div class="mp-pick-desc">${escapeHtml(window.tOr("mp_pick_" + p.slug.replace(/-/g, "_"), p.desc))}</div>
       </div>
-      <button class="btn btn-secondary btn-sm mp-pick-btn" data-slug="${p.slug}" data-name="${escapeHtml(p.name)}">Install</button>
+      <button class="btn btn-secondary btn-sm mp-pick-btn" data-slug="${p.slug}" data-name="${escapeHtml(p.name)}">${escapeHtml(t("mp_install"))}</button>
     </div>
   `,
         ).join("");
@@ -586,26 +607,29 @@
       }
 
       async function installPlugin(projectId, title, btn, projectType) {
-        const sid = picker?.current?.id;
-        if (!sid || picker.demo || sid.startsWith("demo-")) {
-          toast("Sign in and create a server first.", "warn");
+        const cur = picker?.current;
+        const sid = cur?.id;
+        if (!sid || picker.demo || picker.empty || sid.startsWith("demo-") || sid === "no-server") {
+          toast(t("mp_need_server"), "warn");
+          return;
+        }
+        if (cur.type === "vanilla") {
+          toast(t("mp_vanilla"), "warn");
           return;
         }
         const isModpack = projectType === "modpack";
         if (
           isModpack &&
-          !confirm(
-            `Install modpack "${title}"? This may add many mods to your server's mods/ folder and could take a moment.`,
-          )
+          !confirm(tf("mp_modpack_confirm", { name: title }))
         )
           return;
 
         const orig = btn ? btn.textContent : "";
         if (btn) {
           btn.disabled = true;
-          btn.textContent = "⏳ Installing…";
+          btn.textContent = "⏳ " + t("mp_installing");
         }
-        toast(`Installing ${title}…`);
+        toast(tf("mp_installing_toast", { name: title }));
         try {
           const endpoint = isModpack
             ? `/api/servers/${sid}/plugins/install-modpack`
@@ -615,12 +639,12 @@
             body: { project_id: projectId },
           });
           if (r.installed != null) {
-            toast(`✓ Modpack "${title}" — ${r.installed} mods installed`);
+            toast(tf("mp_modpack_done", { name: r.name || title, n: r.installed }));
           } else {
-            toast(`✓ Installed ${r.name} (v${r.version})`);
+            toast(tf("mp_installed_toast", { name: title, v: /^v/i.test(r.version || "") ? r.version : "v" + r.version }));
           }
           if (btn) {
-            btn.textContent = "✓ Installed";
+            btn.textContent = "✓ " + t("mp_installed");
             setTimeout(() => {
               btn.disabled = false;
               btn.textContent = orig;
@@ -643,24 +667,73 @@
         return String(n);
       }
       function renderHits(row, hits) {
+        const canInstall = !!installTarget();
         row.innerHTML = hits
           .map((m) => {
             const icon = m.icon_url
               ? `<img class="mp-feed-icon" src="${escapeHtml(m.icon_url)}" loading="lazy" alt="" />`
               : `<div class="mp-feed-icon"></div>`;
-            // Compact card: icon + name + downloads only. Description removed
+            const kind = m.project_type === "modpack" ? "modpack" : "mod";
+            const slug = escapeHtml(m.slug || m.project_id || "");
+            // Compact card: icon + name + downloads + install. Description removed
             // because it's pure clutter at this density on mobile.
             return `
-        <a class="mp-feed-card" href="https://modrinth.com/mod/${escapeHtml(m.slug || m.project_id)}" target="_blank" rel="noopener">
-          ${icon}
-          <div class="mp-feed-text">
-            <div class="mp-feed-name">${escapeHtml(m.title || "?")}</div>
-            <div class="mp-feed-meta">⬇ ${fmtDownloads(m.downloads)}</div>
-          </div>
-        </a>
+        <div class="mp-feed-card">
+          <a class="mp-feed-link" href="https://modrinth.com/${kind}/${slug}" target="_blank" rel="noopener">
+            ${icon}
+            <div class="mp-feed-text">
+              <div class="mp-feed-name">${escapeHtml(m.title || "?")}</div>
+              <div class="mp-feed-meta">⬇ ${fmtDownloads(m.downloads)}</div>
+            </div>
+          </a>
+          ${canInstall ? `<button class="btn btn-secondary btn-sm mp-feed-btn" data-id="${escapeHtml(m.project_id || "")}" data-name="${escapeHtml(m.title || "?")}" data-kind="${m.project_type === "modpack" ? "modpack" : "plugin"}">${escapeHtml(t("mp_install"))}</button>` : ""}
+        </div>
       `;
           })
           .join("");
+      }
+      // One delegated handler per feed row (rows are re-rendered on every load).
+      for (const id of ["searchRow", "trendingRow", "recentRow"]) {
+        document.getElementById(id)?.addEventListener("click", (e) => {
+          const btn = e.target.closest(".mp-feed-btn");
+          if (!btn) return;
+          installPlugin(btn.dataset.id, btn.dataset.name, btn, btn.dataset.kind);
+        });
+      }
+
+      // Modrinth loader categories each engine can actually run. Feeds and
+      // search are filtered to the selected server so every result installs.
+      const LOADER_FAMILY = {
+        paper: "paper,spigot,bukkit,purpur",
+        purpur: "purpur,paper,spigot,bukkit",
+        spigot: "spigot,paper,bukkit",
+        fabric: "fabric",
+        forge: "forge",
+        neoforge: "neoforge",
+      };
+      const ENGINE_LABEL = { paper: "Paper", purpur: "Purpur", spigot: "Spigot", fabric: "Fabric", forge: "Forge", neoforge: "NeoForge" };
+      // The selected real server that can take plugins/mods, or null.
+      function installTarget() {
+        const cur = picker?.current;
+        if (!cur || picker.demo || picker.empty || !LOADER_FAMILY[cur.type]) return null;
+        return cur;
+      }
+      function loaderParam() {
+        const cur = installTarget();
+        return cur ? `&loader=${encodeURIComponent(LOADER_FAMILY[cur.type])}` : "";
+      }
+      function showCompatNote() {
+        const el = document.getElementById("mpCompat");
+        const cur = installTarget();
+        if (!el) return;
+        el.hidden = !cur;
+        if (cur) el.textContent = tf("mp_compat_for", { engine: ENGINE_LABEL[cur.type] });
+      }
+      async function getJson(url) {
+        const r = await fetch(url, { credentials: "include" });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
       }
       async function loadFeed(targetId, sort) {
         const row = document.getElementById(targetId);
@@ -671,19 +744,17 @@
           window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
         const limit = isMobile ? 4 : 12;
         try {
-          const r = await fetch(
-            `/api/modrinth/search?type=mod&sort=${sort}&limit=${limit}`,
-            { credentials: "include" },
+          const data = await getJson(
+            `/api/modrinth/search?type=mod&sort=${sort}&limit=${limit}${loaderParam()}`,
           );
-          const data = await r.json();
           const hits = data.hits || [];
           if (!hits.length) {
-            row.innerHTML = '<div class="mp-feed-loading">No results</div>';
+            row.innerHTML = `<div class="mp-feed-loading">${escapeHtml(t("mp_no_results"))}</div>`;
             return;
           }
           renderHits(row, hits);
         } catch (err) {
-          row.innerHTML = `<div class="mp-feed-loading">Failed to load (${escapeHtml(err.message)})</div>`;
+          row.innerHTML = `<div class="mp-feed-loading">${escapeHtml(tf("mp_load_failed", { err: err.message }))}</div>`;
         }
       }
 
@@ -700,26 +771,24 @@
         }
         section.style.display = "";
         row.style.display = "";
-        row.innerHTML = '<div class="mp-feed-loading">Searching…</div>';
+        row.innerHTML = `<div class="mp-feed-loading">${escapeHtml(t("mp_searching"))}</div>`;
         const seq = ++searchSeq;
         try {
-          const r = await fetch(
-            `/api/modrinth/search?q=${encodeURIComponent(q)}&limit=18`,
-            { credentials: "include" },
+          const data = await getJson(
+            `/api/modrinth/search?q=${encodeURIComponent(q)}&limit=18${loaderParam()}`,
           );
-          const data = await r.json();
           if (seq !== searchSeq) return; // a newer search superseded this one
           const hits = data.hits || [];
           document.getElementById("searchSub").textContent =
-            `${data.total_hits ?? hits.length} results · Modrinth`;
+            tf("mp_results_count", { n: data.total_hits ?? hits.length });
           if (!hits.length) {
-            row.innerHTML = '<div class="mp-feed-loading">No results</div>';
+            row.innerHTML = `<div class="mp-feed-loading">${escapeHtml(t("mp_no_results"))}</div>`;
             return;
           }
           renderHits(row, hits);
         } catch (err) {
           if (seq !== searchSeq) return;
-          row.innerHTML = `<div class="mp-feed-loading">Search failed (${escapeHtml(err.message)})</div>`;
+          row.innerHTML = `<div class="mp-feed-loading">${escapeHtml(tf("mp_search_failed", { err: err.message }))}</div>`;
         }
       }
       document.getElementById("mpSearch").addEventListener("input", (e) => {
@@ -729,15 +798,19 @@
 
       (async function init() {
         picker = await useServerPicker(document.getElementById("serverPicker"));
-        if (picker.demo)
-          toast(
-            "Sign in and create a server to install plugins for real.",
-            "warn",
-          );
+        if (picker.demo) toast(t("mp_demo_toast"), "warn");
 
+        const loadAll = () => {
+          showCompatNote();
+          loadFeed("trendingRow", "downloads");
+          loadFeed("recentRow", "updated");
+          const q = document.getElementById("mpSearch").value.trim();
+          if (q) doSearch(q);
+        };
         renderTopPicks();
-        loadFeed("trendingRow", "downloads");
-        loadFeed("recentRow", "updated");
+        loadAll();
+        // A different engine means a different compatible set.
+        picker.onChange?.(loadAll);
       })();
     </script>
   </body>
