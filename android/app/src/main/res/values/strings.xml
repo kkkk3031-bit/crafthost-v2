@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CraftHost</string>
+    <string name="server_title">CraftHost server address</string>
+    <string name="server_hint">https://your-crafthost-site</string>
+    <string name="server_help">The address of your CraftHost site. It changes whenever the site\'s tunnel restarts — update it here.</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="invalid_url">Enter a full address starting with https://</string>
+    <string name="exit">Exit</string>
+    <string name="change_server">Change server</string>
+    <string name="reload">Reload</string>
+    <string name="menu_title">CraftHost</string>
+    <string name="offline_title">Can\'t reach CraftHost</string>
+    <string name="offline_body">The site didn\'t answer. Check your connection — or the address may have changed.</string>
+    <string name="retry">Try again</string>
+    <string name="downloading">Downloading %1$s…</string>
+    <string name="download_failed">Download failed</string>
+    <string name="no_file_picker">No app can pick files</string>
+    <string name="old_webview_title">Update Android System WebView</string>
+    <string name="old_webview_body">This phone\'s WebView is version %1$d. CraftHost needs version %2$d or newer — update “Android System WebView” (or Chrome) from Google Play, then try again.</string>
+    <string name="update_webview">Open Google Play</string>
+</resources>
