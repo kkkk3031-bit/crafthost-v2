@@ -173,7 +173,10 @@ function publicHost() {
 // secret never leaves the database after it's set.
 function redact(row) {
   if (!row) return row;
-  const { playit_secret, ...rest } = row;
+  // Credentials the browser never needs (the .bat embeds the launcher token
+  // server-side; RCON is the backend's own channel). Keeping them out of API
+  // responses means an XSS can't lift them either.
+  const { playit_secret, rcon_password, launcher_token, ...rest } = row;
   return { ...rest, playit_enabled: !!playit_secret };
 }
 
@@ -492,7 +495,7 @@ async function createServerForUser(user, opts, ip) {
       is_public: !!isPublic,
       public_host: publicHost(),
       proxy,
-      server: enriched,
+      server: redact(enriched),
       auto_started: autoStarted,
       start_skipped_reason: startSkippedReason,
     };
@@ -685,6 +688,13 @@ router.post("/clone", async (req, res) => {
     console.warn("[clone] copy failed:", err.message);
     // Don't abort — the server is created, user can investigate or delete and retry.
   }
+
+  // Per-server settings that live only in the DB (not in copied files).
+  // The Discord webhook is left out on purpose: the copy would post into the
+  // source's channel under a different name.
+  db.prepare(
+    "UPDATE servers SET startup_commands = ?, scheduled_restart_at = ? WHERE id = ?",
+  ).run(src.startup_commands || null, src.scheduled_restart_at || null, out.id);
 
   // Now auto-start the clone (unless free-tier quota blocks it).
   let autoStarted = false,
@@ -1243,9 +1253,9 @@ router.get("/:id/status", async (req, res) => {
   } catch {}
   try {
     const stats = await dc.getStats(s);
-    res.json({ ...s, stats, public_host: publicHost() });
+    res.json({ ...redact(s), stats, public_host: publicHost() });
   } catch (err) {
-    res.json({ ...s, stats: null, error: err.message });
+    res.json({ ...redact(s), stats: null, error: err.message });
   }
 });
 

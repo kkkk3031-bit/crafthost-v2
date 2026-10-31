@@ -21,6 +21,7 @@ run env MAX_JARS_PER_USER=3 $R node scripts/test-custom-jar.mjs
 run env WS_PING_MS=500 $R node scripts/test-ws-limits.mjs
 run env STORAGE_GB_OVERRIDE=0.002 $R node scripts/test-storage-quota.mjs
 run $R node scripts/test-auth-case.mjs
+run env CONTROLLER_BACKEND=stub $R node scripts/test-clone-settings.mjs
 if [ "${NETWORK:-0}" = "1" ]; then
   run env MAX_SERVERS_PER_USER=5 $R node scripts/test-plugin-install.mjs
   run env MAX_SERVERS_PER_USER=5 $R node scripts/test-mod-updates.mjs
